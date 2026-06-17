@@ -1,0 +1,2869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WAYNE OS // BECOMING</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=VT323&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   WAYNE OS // BECOMING
+   ───────────────────────────────────────────────────────────────────
+   Aesthetic: brutalist Gotham terminal. Cigarette-paper bone white
+   on onyx. One gold leaf accent. Arkham red/green as warning channels.
+   Earned aesthetics — UI literally improves as you progress.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root{
+  --void:        #07070a;
+  --void-soft:   #0c0c11;
+  --void-card:   #11111a;
+  --void-raised: #161623;
+  --rule:        #1d1d2a;
+  --rule-soft:   #15151f;
+
+  --bone:        #e6e0d0;     /* primary text — cigarette paper */
+  --bone-dim:    #a8a395;     /* secondary */
+  --ash:         #6a6759;     /* tertiary */
+  --ash-dim:     #3a382f;     /* quaternary / borders */
+
+  --gold:        #c9a24e;     /* the one gold */
+  --gold-dim:    #8b6f33;
+  --gold-bright: #f0c668;
+
+  --blood:       #8e2030;     /* arkham warning */
+  --blood-dim:   #5a1622;
+  --acid:        #6cb04a;     /* riddler accent */
+  --acid-dim:    #3f6b29;
+
+  --bat-blue:    #3a4a6e;     /* batsuit cold blue */
+  --bat-grey:    #4a4a5a;
+
+  --fa-display: "VT323", monospace;
+  --fa-serif:   "Cormorant Garamond", "Georgia", serif;
+  --fa-mono:    "JetBrains Mono", "Courier New", monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{
+  background:var(--void);
+  color:var(--bone);
+  font-family:var(--fa-mono);
+  font-weight:300;
+  min-height:100vh;
+  overflow-x:hidden;
+  cursor:default;
+  position:relative;
+}
+
+/* Subtle grain — contemporary art texture, very low opacity */
+body::after{
+  content:"";
+  position:fixed;inset:0;
+  pointer-events:none;
+  z-index:9999;
+  opacity:.06;
+  mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Fear-toxin animation when penalised */
+body.fear-toxin{
+  animation: fearToxin 1.4s ease-out;
+}
+@keyframes fearToxin{
+  0%   {filter:none}
+  10%  {filter:hue-rotate(20deg) saturate(2) contrast(1.2)}
+  30%  {filter:hue-rotate(-30deg) saturate(3) blur(.5px)}
+  60%  {filter:hue-rotate(15deg) saturate(1.5)}
+  100% {filter:none}
+}
+
+::selection{background:var(--gold);color:var(--void)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--ash-dim)}
+::-webkit-scrollbar-thumb:hover{background:var(--ash)}
+
+/* ─── BAR / NAV ───────────────────────────────────────────────── */
+.topbar{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  padding:22px 36px 18px;
+  border-bottom:1px solid var(--rule);
+  gap:30px;
+}
+.brand{
+  font-family:var(--fa-display);
+  font-size:24px;
+  letter-spacing:.16em;
+  color:var(--bone);
+}
+.brand .v{color:var(--gold)}
+.brand small{
+  display:block;
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:13px;
+  letter-spacing:.02em;
+  color:var(--ash);
+  margin-top:-2px;
+  font-weight:300;
+}
+.crest{
+  text-align:center;
+  font-family:var(--fa-display);
+  font-size:11px;
+  letter-spacing:.35em;
+  color:var(--ash);
+}
+.crest .bat{
+  display:block;
+  font-size:34px;
+  color:var(--bone);
+  line-height:.8;
+  margin-bottom:6px;
+  letter-spacing:0;
+}
+.clock{
+  text-align:right;
+  font-family:var(--fa-display);
+  font-size:22px;
+  letter-spacing:.08em;
+  color:var(--bone-dim);
+}
+.clock small{
+  display:block;
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:13px;
+  color:var(--ash);
+  letter-spacing:.02em;
+  font-weight:300;
+}
+
+/* ─── MAIN LAYOUT — asymmetric grid, intentionally off-center ───
+   12-column grid. Protagonist hero in centre; Gotham + Batmobile flank.
+   Sectors as horizontal strip. Bottom row: case file + ra's + rogues.
+   ──────────────────────────────────────────────────────────── */
+main{
+  max-width:1480px;
+  margin:0 auto;
+  padding:28px 36px 80px;
+  display:grid;
+  grid-template-columns:repeat(12, 1fr);
+  gap:18px;
+}
+@media (max-width:1100px){
+  main{grid-template-columns:repeat(6, 1fr)}
+}
+
+/* Generic panel */
+.panel{
+  background:var(--void-soft);
+  border:1px solid var(--rule);
+  padding:18px;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+}
+.panel::before{
+  content:attr(data-label);
+  position:absolute;
+  top:-7px; left:14px;
+  background:var(--void);
+  padding:0 8px;
+  font-family:var(--fa-display);
+  font-size:11px;
+  letter-spacing:.3em;
+  color:var(--ash);
+  text-transform:uppercase;
+}
+.panel::after{
+  content:attr(data-sub);
+  position:absolute;
+  bottom:-7px; right:14px;
+  background:var(--void);
+  padding:0 8px;
+  font-family:var(--fa-display);
+  font-size:9px;
+  letter-spacing:.3em;
+  color:var(--ash-dim);
+  text-transform:uppercase;
+}
+
+.panel h2{
+  font-family:var(--fa-serif);
+  font-weight:400;
+  font-size:22px;
+  letter-spacing:-.005em;
+  color:var(--bone);
+  margin-bottom:14px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--rule);
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+}
+.panel h2 em{font-style:italic;font-weight:300;color:var(--bone-dim)}
+.panel h2 .right{
+  font-family:var(--fa-display);
+  font-style:normal;
+  font-size:12px;
+  letter-spacing:.2em;
+  color:var(--ash);
+}
+
+/* ─── LAYOUT POSITIONS ──────────────────────────────────────── */
+#protagonist  { grid-column: span 4; grid-row: span 2; min-height:540px; }
+#gotham       { grid-column: span 4; min-height:260px; }
+#batmobile    { grid-column: span 4; min-height:260px; }
+#sectors-strip{ grid-column: span 8; min-height:260px; }
+#sector-detail{ grid-column: span 4; }
+#case-file    { grid-column: span 6; }
+#ras          { grid-column: span 3; }
+#rogues       { grid-column: span 3; }
+#mantras      { grid-column: span 4; }
+#noodling     { grid-column: span 5; }
+#bat-signal   { grid-column: span 3; }
+#metrics      { grid-column: span 12; }
+
+@media (max-width:1100px){
+  #protagonist, #gotham, #batmobile, #sectors-strip, #sector-detail,
+  #case-file, #ras, #rogues, #mantras, #noodling, #bat-signal, #metrics{
+    grid-column: span 6;
+  }
+}
+
+/* ─── PROTAGONIST ───────────────────────────────────────────── */
+#protagonist .frame{
+  flex:1;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(58,74,110,0.15), transparent 60%),
+    linear-gradient(to bottom, var(--void-card), var(--void));
+  border:1px solid var(--ash-dim);
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  min-height:380px;
+}
+#protagonist canvas{
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  max-width:100%;
+  max-height:100%;
+}
+.protag-title{
+  text-align:center;
+  margin-top:12px;
+}
+.protag-title .codename{
+  font-family:var(--fa-serif);
+  font-size:24px;
+  font-style:italic;
+  font-weight:400;
+  color:var(--bone);
+}
+.protag-title .real-name{
+  font-family:var(--fa-display);
+  font-size:11px;
+  letter-spacing:.35em;
+  color:var(--gold);
+  text-transform:uppercase;
+  margin-top:2px;
+}
+.protag-title .stage{
+  font-family:var(--fa-mono);
+  font-size:11px;
+  color:var(--ash);
+  margin-top:6px;
+  font-style:italic;
+}
+.protag-rays{
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 110%, rgba(201,162,78,.2), transparent 60%);
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 1s;
+}
+.protag-rays.lit{opacity:1}
+
+/* Decorative corner cuts */
+.frame::before,.frame::after{
+  content:"";
+  position:absolute;
+  width:14px; height:14px;
+  border:1px solid var(--ash);
+}
+.frame::before{top:8px;left:8px;border-right:none;border-bottom:none}
+.frame::after{bottom:8px;right:8px;border-left:none;border-top:none}
+
+/* ─── GOTHAM SKYLINE ───────────────────────────────────────── */
+#gotham .frame{
+  flex:1;
+  background:linear-gradient(to bottom, #0a0815, #050308);
+  border:1px solid var(--ash-dim);
+  position:relative;
+  overflow:hidden;
+  min-height:180px;
+  display:flex;
+  align-items:flex-end;
+}
+#gotham canvas{
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  width:100%;
+  height:auto;
+}
+.gotham-tag{
+  position:absolute;
+  top:10px;
+  left:14px;
+  font-family:var(--fa-display);
+  font-size:12px;
+  letter-spacing:.2em;
+  color:var(--bone-dim);
+}
+.gotham-stage{
+  position:absolute;
+  bottom:8px;right:12px;
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:13px;
+  color:var(--gold);
+}
+
+/* ─── BATMOBILE ────────────────────────────────────────────── */
+#batmobile .frame{
+  flex:1;
+  background:
+    linear-gradient(to bottom, var(--void-card) 60%, #1a1a26 100%);
+  border:1px solid var(--ash-dim);
+  position:relative;
+  overflow:hidden;
+  min-height:180px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#batmobile canvas{
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  max-width:100%;
+}
+.batmobile-stage{
+  position:absolute;
+  bottom:8px; left:14px;
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:13px;
+  color:var(--gold);
+}
+
+/* ─── SECTOR STRIP ─────────────────────────────────────────── */
+.sectors{
+  flex:1;
+  display:grid;
+  grid-template-columns:repeat(5, 1fr);
+  gap:10px;
+}
+.sector{
+  background:var(--void-card);
+  border:1px solid var(--rule);
+  padding:14px 12px;
+  cursor:pointer;
+  position:relative;
+  transition:border-color .25s, background .25s, transform .15s;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.sector:hover{border-color:var(--bone-dim);background:var(--void-raised)}
+.sector.active{
+  border-color:var(--gold);
+  background:var(--void-raised);
+}
+.sector.active::before{
+  content:"";
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+  background:var(--gold);
+}
+.sector .sigil{
+  font-size:22px;
+  line-height:1;
+  font-family:var(--fa-display);
+  color:var(--bone);
+}
+.sector .ttl{
+  font-family:var(--fa-serif);
+  font-size:15px;
+  font-weight:500;
+  color:var(--bone);
+}
+.sector .ttl em{font-style:italic;font-weight:300;color:var(--bone-dim)}
+.sector .roman{
+  font-family:var(--fa-display);
+  font-size:9px;
+  letter-spacing:.3em;
+  color:var(--ash);
+}
+.sector .lvl{
+  font-family:var(--fa-display);
+  font-size:24px;
+  color:var(--gold);
+  line-height:1;
+}
+.sector .lvl small{
+  font-size:11px;
+  color:var(--ash);
+  letter-spacing:.15em;
+  display:block;
+  margin-top:2px;
+}
+.sector .xp-bar{
+  height:3px;
+  background:var(--rule);
+  position:relative;
+}
+.sector .xp-bar .fill{
+  position:absolute;
+  top:0;left:0;
+  height:100%;
+  background:var(--gold);
+  transition:width .4s ease-out;
+}
+.sector .item{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:11.5px;
+  color:var(--bone-dim);
+  margin-top:2px;
+  line-height:1.3;
+}
+.sector .glyph-rank{
+  position:absolute;
+  top:10px; right:10px;
+  font-family:var(--fa-display);
+  font-size:10px;
+  letter-spacing:.15em;
+  color:var(--ash);
+}
+
+/* Sector-specific accent colors */
+.sector[data-key="body"]    .sigil,.sector[data-key="body"]    .lvl{color:var(--blood)}
+.sector[data-key="body"]    .xp-bar .fill{background:var(--blood)}
+.sector[data-key="mind"]    .sigil,.sector[data-key="mind"]    .lvl{color:var(--acid)}
+.sector[data-key="mind"]    .xp-bar .fill{background:var(--acid)}
+.sector[data-key="wealth"]  .sigil,.sector[data-key="wealth"]  .lvl{color:var(--gold)}
+.sector[data-key="wealth"]  .xp-bar .fill{background:var(--gold)}
+.sector[data-key="allies"]  .sigil,.sector[data-key="allies"]  .lvl{color:var(--bat-blue);color:#7b8ec4}
+.sector[data-key="allies"]  .xp-bar .fill{background:#7b8ec4}
+.sector[data-key="soul"]    .sigil,.sector[data-key="soul"]    .lvl{color:#a472c4}
+.sector[data-key="soul"]    .xp-bar .fill{background:#a472c4}
+
+/* ─── SECTOR DETAIL ─────────────────────────────────────────── */
+#sector-detail .upgrade-track{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  max-height:230px;
+  overflow-y:auto;
+  padding-right:6px;
+}
+.upgrade-row{
+  display:grid;
+  grid-template-columns: 28px 1fr auto;
+  gap:10px;
+  align-items:center;
+  padding:7px 0;
+  border-bottom:1px dashed var(--rule);
+  font-size:13px;
+}
+.upgrade-row .idx{
+  font-family:var(--fa-display);
+  font-size:11px;
+  color:var(--ash);
+  letter-spacing:.1em;
+}
+.upgrade-row .name{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:14px;
+  color:var(--bone-dim);
+}
+.upgrade-row .stat{
+  font-family:var(--fa-display);
+  font-size:11px;
+  letter-spacing:.15em;
+  color:var(--ash);
+}
+.upgrade-row.unlocked .name{color:var(--bone);font-style:normal}
+.upgrade-row.unlocked .stat{color:var(--gold)}
+.upgrade-row.current{
+  background:rgba(201,162,78,.07);
+  border-left:2px solid var(--gold);
+  padding-left:8px;
+}
+.upgrade-row.current .name{color:var(--gold)}
+
+.sector-detail-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  margin-bottom:8px;
+}
+.sector-detail-head .title{
+  font-family:var(--fa-serif);
+  font-size:18px;
+  font-style:italic;
+  color:var(--bone);
+}
+.sector-detail-head .progress{
+  font-family:var(--fa-display);
+  font-size:11px;
+  letter-spacing:.2em;
+  color:var(--ash);
+}
+
+/* ─── CASE FILE ─────────────────────────────────────────────── */
+.task-entry{
+  display:grid;
+  grid-template-columns: 1fr 100px 90px 70px 80px;
+  gap:8px;
+  margin-bottom:14px;
+}
+.task-entry input,
+.task-entry select{
+  background:var(--void);
+  border:1px solid var(--rule);
+  color:var(--bone);
+  font-family:var(--fa-mono);
+  font-size:12px;
+  font-weight:300;
+  padding:8px 10px;
+  outline:none;
+  transition:border-color .2s;
+}
+.task-entry input:focus,
+.task-entry select:focus{border-color:var(--gold)}
+.task-entry button{
+  all:unset;
+  cursor:pointer;
+  font-family:var(--fa-display);
+  font-size:13px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  background:var(--gold);
+  color:var(--void);
+  padding:0 14px;
+  text-align:center;
+  transition:filter .15s;
+}
+.task-entry button:hover{filter:brightness(1.15)}
+
+.tabs{
+  display:flex;
+  gap:0;
+  border-bottom:1px solid var(--rule);
+  margin-bottom:12px;
+}
+.tabs button{
+  all:unset;
+  cursor:pointer;
+  font-family:var(--fa-display);
+  font-size:11px;
+  letter-spacing:.25em;
+  text-transform:uppercase;
+  color:var(--ash);
+  padding:8px 14px;
+  position:relative;
+  transition:color .2s;
+}
+.tabs button:hover{color:var(--bone)}
+.tabs button.active{color:var(--bone)}
+.tabs button.active::after{
+  content:"";
+  position:absolute;
+  bottom:-1px;left:0;right:0;
+  height:1px;
+  background:var(--gold);
+}
+
+.task-list{
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  max-height:300px;
+  overflow-y:auto;
+}
+.task{
+  display:grid;
+  grid-template-columns: 26px 1fr auto auto auto;
+  gap:12px;
+  align-items:center;
+  padding:10px 4px;
+  border-bottom:1px solid var(--rule);
+  font-size:13px;
+  position:relative;
+}
+.task:hover{background:rgba(255,255,255,.02)}
+.task .mark{
+  font-family:var(--fa-display);
+  font-size:16px;
+  cursor:pointer;
+  text-align:center;
+  user-select:none;
+  color:var(--ash);
+  transition:color .2s, transform .15s;
+}
+.task .mark:hover{color:var(--gold);transform:scale(1.15)}
+.task .title{
+  font-family:var(--fa-mono);
+  font-weight:400;
+  color:var(--bone);
+}
+.task .meta{
+  font-family:var(--fa-display);
+  font-size:10px;
+  letter-spacing:.18em;
+  color:var(--ash);
+}
+.task .sev{
+  font-family:var(--fa-display);
+  font-size:10px;
+  padding:2px 6px;
+  letter-spacing:.15em;
+  border:1px solid var(--rule);
+}
+.task .sev.MINOR  {color:var(--ash);    border-color:var(--ash-dim)}
+.task .sev.STD    {color:var(--bone-dim);border-color:var(--ash)}
+.task .sev.MAJOR  {color:var(--gold);   border-color:var(--gold-dim)}
+.task .sev.CRITICAL{color:var(--blood); border-color:var(--blood-dim);background:rgba(142,32,48,.08)}
+.task .del{
+  all:unset;
+  cursor:pointer;
+  font-family:var(--fa-display);
+  font-size:11px;
+  color:var(--ash-dim);
+  padding:2px 6px;
+  opacity:0;
+  transition:opacity .2s, color .2s;
+}
+.task:hover .del{opacity:1}
+.task .del:hover{color:var(--blood)}
+.task.failing{
+  border-left:2px solid var(--blood);
+  padding-left:4px;
+  background:rgba(142,32,48,.05);
+  animation:glitch 4s infinite;
+}
+.task.failing .title{color:var(--blood)}
+.task.failing::before{
+  content:"FAILING";
+  position:absolute;
+  right:140px; top:50%; transform:translateY(-50%);
+  font-family:var(--fa-display);
+  font-size:9px;
+  letter-spacing:.3em;
+  color:var(--blood);
+}
+.task.done .mark{color:var(--gold)}
+.task.done .title{
+  color:var(--ash);
+  text-decoration:line-through;
+  text-decoration-color:var(--gold-dim);
+}
+@keyframes glitch{
+  0%,100%{transform:translate(0)}
+  20%{transform:translate(-1px,1px)}
+  40%{transform:translate(-2px,-1px)}
+  60%{transform:translate(2px,1px)}
+  80%{transform:translate(1px,-1px)}
+}
+
+.task .badge-vil{
+  font-family:var(--fa-display);
+  font-size:9px;
+  letter-spacing:.18em;
+  color:var(--blood);
+  background:rgba(142,32,48,.12);
+  padding:2px 6px;
+  border:1px solid var(--blood-dim);
+  margin-left:4px;
+}
+
+/* ─── RA'S AL GHUL ─────────────────────────────────────────── */
+#ras{
+  background:
+    radial-gradient(circle at 50% 30%, rgba(106,13,173,.10), transparent 60%),
+    var(--void-soft);
+  border-color:#3a1f4a;
+}
+#ras::before{color:#a472c4}
+#ras h2{color:#c89cdf;border-bottom-color:#3a1f4a}
+.ras-portrait{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-bottom:12px;
+}
+.ras-portrait canvas{
+  image-rendering:pixelated;
+  border:1px solid #3a1f4a;
+}
+.ras-title{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:14px;
+  color:#c89cdf;
+}
+.ras-title small{
+  display:block;
+  font-family:var(--fa-display);
+  font-size:9px;
+  letter-spacing:.3em;
+  color:var(--ash);
+  font-style:normal;
+  margin-top:2px;
+}
+.ras-speech{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:15.5px;
+  line-height:1.5;
+  color:var(--bone);
+  border-left:2px solid #a472c4;
+  padding:10px 14px;
+  background:rgba(106,13,173,.04);
+  font-weight:300;
+  min-height:90px;
+}
+.ras-speech .attr{
+  display:block;
+  font-style:normal;
+  font-family:var(--fa-display);
+  font-size:9px;
+  letter-spacing:.3em;
+  color:#a472c4;
+  margin-top:8px;
+}
+.ras-act{
+  margin-top:8px;
+  display:flex;
+  justify-content:flex-end;
+}
+.ras-act button{
+  all:unset;
+  cursor:pointer;
+  font-family:var(--fa-display);
+  font-size:10px;
+  letter-spacing:.2em;
+  color:var(--ash);
+}
+.ras-act button:hover{color:#c89cdf}
+
+/* ─── ROGUES GALLERY ──────────────────────────────────────── */
+#rogues{
+  border-color:var(--blood-dim);
+}
+#rogues h2{color:var(--blood)}
+#rogues::before{color:var(--blood-dim)}
+.rogue-entry{
+  display:flex;
+  gap:8px;
+  margin-bottom:12px;
+}
+.rogue-entry input{
+  flex:1;
+  background:var(--void);
+  border:1px solid var(--rule);
+  color:var(--bone);
+  font-family:var(--fa-mono);
+  font-size:12px;
+  padding:7px 10px;
+  outline:none;
+}
+.rogue-entry input:focus{border-color:var(--blood)}
+.rogue-entry button{
+  all:unset;
+  cursor:pointer;
+  font-family:var(--fa-display);
+  font-size:12px;
+  letter-spacing:.2em;
+  background:var(--blood);
+  color:var(--bone);
+  padding:0 12px;
+}
+.rogues-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  max-height:280px;
+  overflow-y:auto;
+}
+.rogue{
+  background:var(--void-card);
+  border:1px solid var(--rule);
+  padding:10px 12px;
+  position:relative;
+}
+.rogue.defeated{
+  border-color:var(--gold-dim);
+  background:rgba(201,162,78,.04);
+}
+.rogue.defeated .name{
+  text-decoration:line-through;
+  text-decoration-color:var(--gold);
+  color:var(--ash);
+}
+.rogue .name{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:15px;
+  color:var(--bone);
+  margin-bottom:4px;
+}
+.rogue .hp{
+  font-family:var(--fa-display);
+  font-size:10px;
+  letter-spacing:.2em;
+  color:var(--blood);
+}
+.rogue.defeated .hp{color:var(--gold)}
+.rogue .bar{
+  margin-top:6px;
+  height:3px;
+  background:var(--rule);
+  position:relative;
+}
+.rogue .bar .fill{
+  position:absolute;
+  top:0;left:0;
+  height:100%;
+  background:var(--blood);
+  transition:width .4s;
+}
+.rogue.defeated .bar .fill{background:var(--gold)}
+.rogue .strike{
+  position:absolute;
+  top:8px;right:10px;
+  display:flex;
+  gap:4px;
+}
+.rogue .strike button{
+  all:unset;
+  cursor:pointer;
+  font-family:var(--fa-display);
+  font-size:10px;
+  letter-spacing:.1em;
+  color:var(--ash);
+  padding:2px 6px;
+  border:1px solid var(--ash-dim);
+  transition:all .15s;
+}
+.rogue .strike button:hover{color:var(--bone);border-color:var(--bone-dim)}
+.rogue .strike button.del:hover{color:var(--blood);border-color:var(--blood)}
+
+/* ─── MANTRAS ────────────────────────────────────────────── */
+.mantra-entry{
+  display:flex;
+  gap:8px;
+  margin-bottom:14px;
+}
+.mantra-entry input{
+  flex:1;
+  background:var(--void);
+  border:1px solid var(--rule);
+  color:var(--bone);
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:14px;
+  padding:8px 12px;
+  outline:none;
+}
+.mantra-entry input:focus{border-color:var(--gold)}
+.mantra-list{
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  max-height:300px;
+  overflow-y:auto;
+}
+.mantra{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:15px;
+  line-height:1.5;
+  color:var(--bone);
+  padding:10px 0 10px 14px;
+  border-bottom:1px dashed var(--rule);
+  border-left:2px solid var(--gold-dim);
+  position:relative;
+  font-weight:400;
+}
+.mantra .who{
+  display:block;
+  font-family:var(--fa-display);
+  font-size:9px;
+  letter-spacing:.3em;
+  color:var(--ash);
+  font-style:normal;
+  margin-top:4px;
+}
+.mantra .del{
+  position:absolute;
+  top:8px; right:0;
+  all:unset;
+  cursor:pointer;
+  font-family:var(--fa-display);
+  font-size:10px;
+  color:var(--ash-dim);
+  opacity:0;
+}
+.mantra:hover .del{opacity:1}
+.mantra .del:hover{color:var(--blood)}
+
+/* ─── NOODLING / DETECTIVE VISION ──────────────────────────── */
+#noodling textarea{
+  flex:1;
+  background:rgba(108,176,74,.03);
+  border:1px solid var(--rule);
+  color:var(--acid);
+  font-family:var(--fa-mono);
+  font-size:13px;
+  line-height:1.65;
+  padding:14px;
+  resize:none;
+  outline:none;
+  min-height:220px;
+  width:100%;
+  caret-color:var(--acid);
+  font-weight:400;
+}
+#noodling textarea:focus{border-color:var(--acid)}
+#noodling textarea::placeholder{color:var(--acid-dim);font-style:italic}
+.noodle-foot{
+  margin-top:8px;
+  display:flex;
+  justify-content:space-between;
+  font-family:var(--fa-display);
+  font-size:10px;
+  letter-spacing:.2em;
+  color:var(--ash);
+}
+
+/* ─── BAT-SIGNAL ──────────────────────────────────────────── */
+#bat-signal{
+  background:
+    radial-gradient(circle at 50% 0%, rgba(201,162,78,.10), transparent 60%),
+    var(--void-soft);
+}
+.signal-art{
+  background:linear-gradient(to bottom, #050308, #0a0815);
+  border:1px solid var(--ash-dim);
+  height:120px;
+  position:relative;
+  overflow:hidden;
+  margin-bottom:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.signal-art canvas{image-rendering:pixelated}
+.signal-task{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:16px;
+  color:var(--gold);
+  margin-bottom:6px;
+  line-height:1.4;
+  min-height:50px;
+}
+.signal-meta{
+  font-family:var(--fa-display);
+  font-size:10px;
+  letter-spacing:.25em;
+  color:var(--ash);
+  text-transform:uppercase;
+}
+.signal-empty{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  color:var(--ash-dim);
+  font-size:14px;
+}
+
+/* ─── METRICS BAR ─────────────────────────────────────────── */
+#metrics{
+  display:grid;
+  grid-template-columns:repeat(6, 1fr);
+  gap:18px;
+  padding:18px 22px;
+}
+.metric{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.metric .n{
+  font-family:var(--fa-display);
+  font-size:30px;
+  color:var(--gold);
+  line-height:1;
+}
+.metric .l{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:12px;
+  color:var(--ash);
+  line-height:1.3;
+}
+.metric.crit .n{color:var(--blood)}
+.metric.win  .n{color:var(--acid)}
+
+/* ─── PROGRESSION VIGNETTE — visual richness scales with mastery ─
+   Composite level binds to body class progression-tier-N.
+   Each tier adds a small flourish: corner ornaments, gold rules,
+   warmer atmosphere, etc.  ──────────────────────────────────── */
+.progression-tier-1 { /* baseline, austere */ }
+.progression-tier-2 .panel{ border-color:var(--rule); }
+.progression-tier-3 .panel::before{ color:var(--bone-dim); }
+.progression-tier-4 .panel h2{ color:var(--bone) }
+.progression-tier-5 .panel{ border-color:var(--ash-dim) }
+.progression-tier-6 .panel::after{ color:var(--gold-dim) }
+.progression-tier-7 body{ background:#08080d }
+.progression-tier-8 .panel::before{ color:var(--gold) }
+.progression-tier-9 .panel h2{ border-bottom-color:var(--gold-dim) }
+.progression-tier-10 .topbar{ border-bottom-color:var(--gold-dim) }
+
+/* Sparks on task completion */
+@keyframes spark-out{
+  0%{transform:translate(0,0) scale(1);opacity:1}
+  100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}
+}
+.spark{
+  position:fixed;
+  width:5px;height:5px;
+  background:var(--gold);
+  pointer-events:none;
+  z-index:5000;
+  animation:spark-out .9s ease-out forwards;
+  box-shadow:0 0 8px var(--gold);
+}
+
+/* Toast */
+.toast{
+  position:fixed;
+  top:32px; left:50%; transform:translateX(-50%);
+  background:var(--void-raised);
+  border:1px solid var(--gold);
+  color:var(--bone);
+  font-family:var(--fa-serif);
+  font-style:italic;
+  font-size:16px;
+  padding:14px 26px;
+  z-index:6000;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .3s, transform .3s;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(10px)}
+.toast .label{
+  display:block;
+  font-family:var(--fa-display);
+  font-style:normal;
+  font-size:9px;
+  letter-spacing:.3em;
+  color:var(--gold);
+  margin-bottom:4px;
+}
+
+/* Empty states */
+.empty-state{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  color:var(--ash-dim);
+  text-align:center;
+  padding:20px;
+  font-size:13.5px;
+}
+
+/* Footer */
+footer{
+  border-top:1px solid var(--rule);
+  padding:18px 36px;
+  display:flex;
+  justify-content:space-between;
+  font-family:var(--fa-display);
+  font-size:10px;
+  letter-spacing:.3em;
+  color:var(--ash-dim);
+  text-transform:uppercase;
+}
+footer em{
+  font-family:var(--fa-serif);
+  font-style:italic;
+  letter-spacing:0;
+  font-size:11px;
+  text-transform:none;
+  color:var(--ash);
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOP BAR ═══ -->
+<div class="topbar">
+  <div class="brand">
+    WAYNE OS <span class="v">/ V3</span>
+    <small>becoming, in nightly installments</small>
+  </div>
+  <div class="crest">
+    <span class="bat">𓆩⚑𓆪</span>
+    Pro Gotham · Pro Se
+  </div>
+  <div class="clock">
+    <span id="clock-time">--:--</span>
+    <small id="clock-date">—</small>
+  </div>
+</div>
+
+<main id="main-grid">
+
+  <!-- ═══ PROTAGONIST ═══ -->
+  <section class="panel" id="protagonist" data-label="I · The Protagonist" data-sub="composite mastery">
+    <h2>The <em>Protagonist</em> <span class="right" id="composite-display">LVL 5</span></h2>
+    <div class="frame">
+      <div class="protag-rays" id="protag-rays"></div>
+      <canvas id="protag-canvas" width="160" height="240"></canvas>
+    </div>
+    <div class="protag-title">
+      <div class="codename" id="protag-codename">The Boy in the Alley</div>
+      <div class="real-name">BRUCE THOMAS WAYNE</div>
+      <div class="stage" id="protag-stage">— pre-training —</div>
+    </div>
+  </section>
+
+  <!-- ═══ GOTHAM ═══ -->
+  <section class="panel" id="gotham" data-label="II · Gotham" data-sub="the city that made him">
+    <h2>The <em>City</em> <span class="right" id="gotham-rank">CRIME ALLEY</span></h2>
+    <div class="frame">
+      <span class="gotham-tag" id="gotham-time">—</span>
+      <canvas id="gotham-canvas" width="320" height="140"></canvas>
+      <span class="gotham-stage" id="gotham-stage">…</span>
+    </div>
+  </section>
+
+  <!-- ═══ BATMOBILE ═══ -->
+  <section class="panel" id="batmobile" data-label="III · The Batmobile" data-sub="forged from wayne tech">
+    <h2>The <em>Vehicle</em> <span class="right" id="batmobile-rank">SKATEBOARD</span></h2>
+    <div class="frame">
+      <canvas id="batmobile-canvas" width="220" height="120"></canvas>
+      <span class="batmobile-stage" id="batmobile-stage">…</span>
+    </div>
+  </section>
+
+  <!-- ═══ FIVE SECTORS STRIP ═══ -->
+  <section class="panel" id="sectors-strip" data-label="IV · The Pillars" data-sub="five disciplines">
+    <h2>The <em>Five Pillars</em> <span class="right">click to inspect</span></h2>
+    <div class="sectors" id="sectors-container"></div>
+  </section>
+
+  <!-- ═══ SECTOR DETAIL (upgrade track for clicked sector) ═══ -->
+  <section class="panel" id="sector-detail" data-label="V · Codex" data-sub="upgrade track">
+    <div class="sector-detail-head">
+      <span class="title" id="detail-title">The Body</span>
+      <span class="progress" id="detail-progress">0 / 30</span>
+    </div>
+    <div class="upgrade-track" id="detail-track"></div>
+  </section>
+
+  <!-- ═══ CASE FILE ═══ -->
+  <section class="panel" id="case-file" data-label="VI · Case File" data-sub="execute or suffer">
+    <h2>The <em>Case File</em> <span class="right" id="case-stat">0 OPEN · 0 FAILING</span></h2>
+    <form class="task-entry" id="task-form">
+      <input type="text" id="task-input" placeholder="define objective…" required>
+      <select id="task-sector">
+        <option value="body">Body</option>
+        <option value="mind">Mind</option>
+        <option value="wealth">Wealth</option>
+        <option value="allies">Allies</option>
+        <option value="soul">Soul</option>
+        <option value="project">Project</option>
+      </select>
+      <select id="task-sev">
+        <option value="MINOR">Minor</option>
+        <option value="STD" selected>Standard</option>
+        <option value="MAJOR">Major</option>
+        <option value="CRITICAL">Critical</option>
+      </select>
+      <select id="task-rogue">
+        <option value="">No Rogue</option>
+      </select>
+      <button type="submit">Commit</button>
+    </form>
+    <div class="tabs" id="case-tabs">
+      <button class="active" data-filter="open">Open</button>
+      <button data-filter="failing">Failing</button>
+      <button data-filter="done">Closed</button>
+      <button data-filter="all">All</button>
+    </div>
+    <div class="task-list" id="task-list"></div>
+  </section>
+
+  <!-- ═══ RA'S AL GHUL ═══ -->
+  <section class="panel" id="ras" data-label="VII · The Demon's Head" data-sub="al ghul, in residence">
+    <h2>Ra's <em>al Ghul</em></h2>
+    <div class="ras-portrait">
+      <canvas id="ras-canvas" width="64" height="64"></canvas>
+      <div class="ras-title">
+        the Demon's Head
+        <small>SENSEI · ANTAGONIST</small>
+      </div>
+    </div>
+    <div class="ras-speech" id="ras-speech">
+      "—"
+      <span class="attr">— ra's al ghul</span>
+    </div>
+    <div class="ras-act"><button id="ras-next">▸ NEXT INSULT</button></div>
+  </section>
+
+  <!-- ═══ ROGUES GALLERY ═══ -->
+  <section class="panel" id="rogues" data-label="VIII · Rogues Gallery" data-sub="personal demons">
+    <h2>Rogues' <em>Gallery</em></h2>
+    <form class="rogue-entry" id="rogue-form">
+      <input type="text" id="rogue-input" placeholder="name a weakness…" required>
+      <button type="submit">+ Add</button>
+    </form>
+    <div class="rogues-list" id="rogues-list"></div>
+  </section>
+
+  <!-- ═══ MANTRAS ═══ -->
+  <section class="panel" id="mantras" data-label="IX · Mantras" data-sub="words to swear by">
+    <h2>The <em>Mantras</em></h2>
+    <form class="mantra-entry" id="mantra-form">
+      <input type="text" id="mantra-input" placeholder="enter a vow, a quote, a creed…" required>
+    </form>
+    <div class="mantra-list" id="mantra-list"></div>
+  </section>
+
+  <!-- ═══ NOODLING / DETECTIVE VISION ═══ -->
+  <section class="panel" id="noodling" data-label="X · Detective Vision" data-sub="connect the strings">
+    <h2>Detective <em>Vision</em> <span class="right" id="noodle-len">0w</span></h2>
+    <textarea id="noodle-text" placeholder="connect the strings.  what does the evidence say.  what are you not seeing.  who benefits.  what is the lie underneath.  …"></textarea>
+    <div class="noodle-foot">
+      <span>autosaved</span>
+      <span id="noodle-saved">— · —</span>
+    </div>
+  </section>
+
+  <!-- ═══ BAT-SIGNAL ═══ -->
+  <section class="panel" id="bat-signal" data-label="XI · The Bat-Signal" data-sub="today's call">
+    <h2>The <em>Signal</em></h2>
+    <div class="signal-art">
+      <canvas id="signal-canvas" width="180" height="120"></canvas>
+    </div>
+    <div class="signal-task" id="signal-task">no critical case selected.</div>
+    <div class="signal-meta" id="signal-meta">— quiet night —</div>
+  </section>
+
+  <!-- ═══ METRICS ═══ -->
+  <section class="panel" id="metrics" data-label="XII · Telemetry" data-sub="cold hard numbers">
+    <div class="metric"><div class="n" id="m-tasks">0</div><div class="l">missions executed</div></div>
+    <div class="metric"><div class="n" id="m-streak">0</div><div class="l">consecutive nights on patrol</div></div>
+    <div class="metric crit"><div class="n" id="m-failed">0</div><div class="l">missions failed in shame</div></div>
+    <div class="metric"><div class="n" id="m-rogues">0/0</div><div class="l">rogues defeated</div></div>
+    <div class="metric win"><div class="n" id="m-upg">0</div><div class="l">upgrades earned</div></div>
+    <div class="metric"><div class="n" id="m-days">0</div><div class="l">nights since the alley</div></div>
+  </section>
+
+</main>
+
+<footer>
+  <span>WAYNE OS · BECOMING · V3</span>
+  <em>"It's not who you are underneath, but what you do, that defines you."</em>
+  <span id="footer-tag">MMXXVI</span>
+</footer>
+
+<div class="toast" id="toast">
+  <span class="label">UPGRADE ACQUIRED</span>
+  <span id="toast-text">—</span>
+</div>
+
+<script>
+/* ═════════════════════════════════════════════════════════════════
+   STATE  ·  persisted to localStorage as wayneOS.v3
+   ═════════════════════════════════════════════════════════════════ */
+const KEY = "wayneOS.v3";
+
+const defaultState = {
+  firstNight: new Date().toISOString().slice(0,10),
+  sectors: {
+    body:    {xp:0, lvl:0, unlocked:[]},
+    mind:    {xp:0, lvl:0, unlocked:[]},
+    wealth:  {xp:0, lvl:0, unlocked:[]},
+    allies:  {xp:0, lvl:0, unlocked:[]},
+    soul:    {xp:0, lvl:0, unlocked:[]},
+    project: {xp:0, lvl:0, unlocked:[]},  // drives batmobile
+  },
+  tasks: [],
+  closedTasks: [],
+  rogues: [],
+  mantras: [
+    {text:"Swear to me.", who:"BRUCE WAYNE"},
+    {text:"It's not who I am underneath, but what I do, that defines me.", who:"BRUCE WAYNE"},
+    {text:"Why do we fall? So we can learn to pick ourselves up.", who:"THOMAS WAYNE"},
+  ],
+  noodling: "",
+  noodleSavedAt: null,
+  completionLog: [],   // ISO dates
+  failedCount: 0,
+  signal: null,         // {taskId, date}
+  selectedSector: "body",
+  rasIndex: 0,
+};
+let state = load();
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return structuredClone(defaultState);
+    const parsed = JSON.parse(raw);
+    return deepMerge(structuredClone(defaultState), parsed);
+  }catch(e){ return structuredClone(defaultState); }
+}
+function deepMerge(a, b){
+  for(const k in b){
+    if(b[k] && typeof b[k] === 'object' && !Array.isArray(b[k])){
+      a[k] = deepMerge(a[k] || {}, b[k]);
+    } else { a[k] = b[k]; }
+  }
+  return a;
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+const uid = () => Math.random().toString(36).slice(2,10);
+const todayKey = () => new Date().toISOString().slice(0,10);
+
+/* ═════════════════════════════════════════════════════════════════
+   UPGRADE LADDERS  ·  ~30 tiny upgrades per sector
+   The number ratchets up slowly. You do not become Batman in a week.
+   ═════════════════════════════════════════════════════════════════ */
+const UPGRADES = {
+  body: [
+    "stretch & breathe",         "push-up form drilled",     "first cold shower",
+    "8 hrs sleep, three nights", "boxing wraps acquired",    "bag work fundamentals",
+    "muay thai: jab + cross",    "krav maga: inside defense","silat: hand traps",
+    "joint locks I",             "wing chun: chain punches", "judo: foundational throws",
+    "BJJ: positional control",   "ninjutsu: silent movement","keysi: defensive lines",
+    "weighted vest training",    "scaling rope: 30 ft",      "free running fundamentals",
+    "iron palm conditioning",    "needle-thread breath",     "kata of the broken sword",
+    "fasted morning patrols",    "league of shadows form I", "league of shadows form II",
+    "league of shadows form III","poisoner's tolerance",     "the silent walk",
+    "deathstroke sparring set",  "five-style mastery",       "THE PEAK HUMAN",
+  ],
+  mind: [
+    "library card",              "casefile journaling",      "rubik's cube under 2 min",
+    "GTD inbox zero",            "first language: latin",    "memory palace I",
+    "deduction trees",           "encrypted notebook",       "second language: japanese",
+    "third language: russian",   "speed reading: 600 wpm",   "lockpicking basics",
+    "lockpicking: tubular",      "criminology textbook I",   "criminology textbook II",
+    "forensic pathology I",      "ciphers: classical",       "ciphers: modern",
+    "psych: behavioral analysis","interrogation: layered",   "polygraph defeat",
+    "hypnotic suggestion",       "the kobra defense (mind)", "AI/ML for crime mapping",
+    "first batcomputer build",   "facial recognition v1",    "city-scale wiretap",
+    "predictive crime model",    "the great equation",       "WORLD'S GREATEST DETECTIVE",
+  ],
+  wealth: [
+    "$1k saved",                 "first index fund",         "side income I",
+    "$10k saved",                "tax filed clean",          "small business loan",
+    "first warehouse property",  "patent: file one",         "patent: file three",
+    "first hire",                "10 employees",             "Series A funded",
+    "first acquisition",         "private security division","applied sciences division",
+    "Wayne Tower lease",         "Wayne Tower purchase",     "$1M net worth",
+    "$10M net worth",            "Wayne Tech R&D wing",      "kevlar contract: USA",
+    "carbon nanotube patent",    "satellite uplink leased",  "satellite uplink owned",
+    "$100M net worth",           "Wayne Enterprises (CEO)",  "Wayne Manor restored",
+    "the Batcave (lit)",         "philanthropic empire",     "BILLIONAIRE",
+  ],
+  allies: [
+    "Alfred answers the bell",   "Alfred makes tea",         "first true friend",
+    "Lucius: small consult",     "Lucius: applied sciences", "Lucius: full alliance",
+    "Gordon: precinct contact",  "Gordon: detective tier",   "Gordon: lieutenant",
+    "Gordon: commissioner",      "Selina: rooftop accord",   "Selina: alliance",
+    "Dick (Robin) recruited",    "Dick trained",             "Dick graduates: Nightwing",
+    "Barbara: research aide",    "Barbara: Oracle",          "Tim (Robin III)",
+    "Damian (Robin V)",          "Cassandra recruited",      "Stephanie recruited",
+    "Outsiders formed",          "League of Justice: contact","League of Justice: trusted",
+    "League of Justice: founder","Justice League Watchtower","Birds of Prey alliance",
+    "the Bat-Family complete",   "global allies network",    "THE WORLD STANDS WITH YOU",
+  ],
+  soul: [
+    "grieve, finally",           "first quiet hour",         "one promise kept",
+    "the no-kill rule, firm",    "forgive Joe Chill (try)",  "Crime Alley: stand there",
+    "annual visit to the alley", "Wayne Foundation: revive", "school for the Park Row kids",
+    "Martha Wayne clinic",       "Thomas Wayne wing (hospital)", "anonymous gifts: ten",
+    "anonymous gifts: hundred",  "speak at the orphanage",   "fund the orphanage",
+    "open the manor for shelter","Dr. Thompkins, reconnected","sit with a victim's family",
+    "do not strike in anger I",  "do not strike in anger II","do not strike in anger III",
+    "the one tear, allowed",     "joy, briefly",             "love, briefly",
+    "love, sustained",           "say the words, aloud",     "let someone hold you",
+    "the boy in the alley: held","the parents: at peace",    "BECOME, FULLY",
+  ],
+  project: [
+    "the chassis",               "wheels: bolted",           "front axle",
+    "rear axle",                 "steering column",          "first ignition",
+    "armored plating I",         "armored plating II",       "smokescreen rig",
+    "afterburner installed",     "ejector seat",             "ramming prow",
+    "machine guns: forward",     "rocket pod: left",         "rocket pod: right",
+    "tumbler mode: locked",      "tumbler mode: extended",   "stealth coating",
+    "EMP launcher",              "grapple hook (vehicle)",   "auto-pilot: city",
+    "auto-pilot: pursuit",       "submerge package",         "flight package: hover",
+    "flight package: stable",    "flight package: aerial",   "bat-pod separation",
+    "satellite uplink (in car)", "VANTABLACK coat",          "THE BATMOBILE (FINAL)",
+  ],
+};
+
+/* ═════════════════════════════════════════════════════════════════
+   RA'S AL GHUL  ·  insults adapted to your state
+   ═════════════════════════════════════════════════════════════════ */
+const RAS_GENERIC = [
+  "You are a boy hiding in an alley.",
+  "Your compassion is a weakness your enemies will not share.",
+  "Theatricality and deception are powerful agents. You have neither.",
+  "If you make yourself more than just a man, you become legend. You are not legend.",
+  "Training is nothing. Will is everything. Your will is plastic.",
+  "You lack the courage to do what is necessary.",
+  "Death does not wait for your motivation.",
+  "I have seen you fight. It is sad.",
+  "You wear the costume but you do not wear the cause.",
+  "The bat is not a symbol. Not until you earn it.",
+  "Crime is patient. You are not.",
+  "I have buried sons more disciplined than you.",
+  "You think hesitation is mercy. It is cowardice in a wig.",
+  "A man with three open mission files is not a man, he is a list.",
+  "Your enemies do not check their phones. They prepare.",
+];
+const RAS_CONTEXT = [
+  // (state) => string|null   — returns insult relevant to current state, or null
+  s => {
+    const failing = s.tasks.filter(t => isFailing(t)).length;
+    if(failing >= 3) return `Three of your missions are decaying as you breathe. Three. The bat does not procrastinate. The bat does not exist.`;
+    if(failing >= 1) return `You have a mission rotting in your case file. Open it. Close it. Or stop calling yourself a vigilante.`;
+    return null;
+  },
+  s => {
+    const lvlSum = sumLevels(s);
+    if(lvlSum < 5) return `You think reading this dashboard is "doing the work." It is not.`;
+    return null;
+  },
+  s => {
+    const undefeated = s.rogues.filter(r => !r.defeated).length;
+    if(undefeated >= 5) return `${undefeated} rogues at large in your own gallery. Are you the Batman or the curator of your own dysfunction?`;
+    return null;
+  },
+  s => {
+    const streak = computeStreak();
+    if(streak === 0) return `Yesterday you did nothing. The night noticed. I noticed.`;
+    if(streak >= 7) return `Seven nights. Adequate. Do not let me say "adequate" again.`;
+    return null;
+  },
+  s => {
+    if(!s.signal && s.tasks.some(t => t.sev === "CRITICAL"))
+      return `You have a CRITICAL mission but no signal lit. Light the signal, or admit you don't believe yourself.`;
+    return null;
+  },
+  s => {
+    if(s.mantras.length === 0) return `No mantras? No creed? You will become whatever the wind tells you.`;
+    return null;
+  },
+];
+
+function rasSpeak(){
+  const ctx = RAS_CONTEXT.map(fn => fn(state)).filter(Boolean);
+  const pool = ctx.length ? ctx : RAS_GENERIC;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  document.getElementById('ras-speech').innerHTML =
+    `"${pick}" <span class="attr">— ra's al ghul</span>`;
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   PIXEL ART  ·  procedurally drawn on canvas
+   palette helper:
+   ═════════════════════════════════════════════════════════════════ */
+const COLOR = {
+  '.': null,
+  '0': '#07070a',  '1': '#11111a',  '2': '#1d1d2a',  '3': '#2a2a3a',
+  'g': '#c9a24e',  'G': '#f0c668',  'h': '#8b6f33',  'H': '#6b5424',
+  's': '#3a4a6e',  'S': '#5a6a8e',  'b': '#0a0d18',  'B': '#1a2030', // bat blues
+  'k': '#03030a',                                                  // pure black
+  'w': '#e6e0d0',  'W': '#f7f3e8',                                 // bone
+  'r': '#8e2030',  'R': '#bf3b50',                                 // blood
+  'a': '#6cb04a',  'A': '#92d069',                                 // acid green
+  'p': '#a472c4',  'P': '#c89cdf',                                 // purple
+  'f': '#3a382f',  'F': '#6a6759',                                 // ash
+  'n': '#5a3a20',  'N': '#7d5430',                                 // skin/leather
+  'y': '#d9b070',  'Y': '#e8c590',                                 // skin highlight
+};
+
+function px(ctx, sx, sy, w, h, color){
+  ctx.fillStyle = color;
+  ctx.fillRect(sx, sy, w, h);
+}
+function drawSprite(ctx, sprite, x, y, scale=1){
+  for(let row=0; row<sprite.length; row++){
+    const line = sprite[row];
+    for(let col=0; col<line.length; col++){
+      const ch = line[col];
+      const c = COLOR[ch];
+      if(!c) continue;
+      ctx.fillStyle = c;
+      ctx.fillRect(x + col*scale, y + row*scale, scale, scale);
+    }
+  }
+}
+
+/* ─── PROTAGONIST CANVAS ─────────────────────────────────────────
+   16x24 base sprite, drawn at scale 8 for hero presence.
+   Layers added based on individual sector unlocks.
+   ───────────────────────────────────────────────────────────────── */
+const protagCanvas = document.getElementById('protag-canvas');
+const pctx = protagCanvas.getContext('2d');
+pctx.imageSmoothingEnabled = false;
+
+function drawProtagonist(){
+  pctx.clearRect(0, 0, protagCanvas.width, protagCanvas.height);
+  const scale = 8;
+  const cx = 2; const cy = 1; // origin in sprite cells
+
+  const body  = state.sectors.body.lvl;
+  const mind  = state.sectors.mind.lvl;
+  const wealth= state.sectors.wealth.lvl;
+  const allies= state.sectors.allies.lvl;
+  const soul  = state.sectors.soul.lvl;
+  const total = sumLevels(state);
+
+  // Base body — civilian, skinny.
+  const base = [
+    "................",   // 0
+    "................",   // 1
+    "......yyyy......",   // 2 head top
+    ".....yyYYYy.....",   // 3 head
+    ".....yWyyWy.....",   // 4 eyes
+    "......yyyy......",   // 5 jaw
+    "......yyyy......",   // 6 neck
+    ".....wwwwww.....",   // 7 shoulders/shirt
+    "....wwwwwwww....",   // 8 torso
+    "....wwwwwwww....",   // 9 torso
+    "....wwwwwwww....",   //10 torso
+    "....wwwwwwww....",   //11 belt area
+    "....ffffffff....",   //12 pants
+    "....ffffffff....",   //13 pants
+    "....ffffffff....",   //14
+    "....ff....ff....",   //15
+    "....ff....ff....",   //16
+    "....ff....ff....",   //17
+    "....ff....ff....",   //18
+    "....ff....ff....",   //19
+    "....ff....ff....",   //20
+    "....nn....nn....",   //21 boots
+    "....nn....nn....",   //22
+    "....nn....nn....",   //23
+  ];
+
+  // BODY tier — muscle definition, posture, eventually batsuit on torso
+  let s = base.map(r => r.split(''));
+
+  // BODY upgrades: posture, muscle bulk, then armor
+  if(body >= 2){
+    // wider shoulders, chest
+    s[7]=("....wwwwwwww....").split('');
+  }
+  if(body >= 4){
+    // arm definition — add forearms next to torso
+    for(let r=8;r<=11;r++){
+      s[r][3] = 'y'; s[r][12] = 'y';
+    }
+  }
+  if(body >= 8){
+    // tighter body, hint of musculature in torso
+    for(let r=8;r<=11;r++){
+      s[r][6] = '2'; s[r][9] = '2'; // shadow lines
+    }
+  }
+  if(body >= 12){
+    // wing chun/ kevlar undershirt — darker torso
+    for(let r=8;r<=11;r++){
+      for(let c=4;c<=11;c++) s[r][c] = 'B';
+    }
+    s[7] = "....BBBBBBBB....".split('');
+  }
+  if(body >= 18){
+    // arms become darker/armored
+    for(let r=8;r<=11;r++){
+      s[r][3] = 'B'; s[r][12] = 'B';
+    }
+  }
+  if(body >= 24){
+    // legs darker tactical
+    for(let r=12;r<=21;r++){
+      for(let c=4;c<=11;c++) if(s[r][c]==='f') s[r][c]='B';
+      if(s[r][4]==='f') s[r][4]='B';
+      if(s[r][11]==='f') s[r][11]='B';
+    }
+  }
+
+  // MIND upgrades — cowl progression. The ears.
+  if(mind >= 4){
+    // eyepiece (detective lenses) — small accent
+    s[4]="......WyyW......".split(''); // white eyes — visor hint
+  }
+  if(mind >= 10){
+    // partial cowl — top of head darker
+    s[2]="......BBBB......".split('');
+    s[3]="......BBBB......".split('');
+    s[4]="......WBBW......".split('');
+    // tiny ears appearing
+    s[1]="......B..B......".split('');
+  }
+  if(mind >= 16){
+    // full cowl — head all dark, bone-white eye slits
+    // 16 cols, cowl spans cols 5..10 inclusive
+    s[2]=".....BBBBBB.....".split('');
+    s[3]=".....BBBBBB.....".split('');
+    s[4]=".....BWBBWB.....".split('');  // eye slits at 6 and 9
+    s[5]=".....BBBBBB.....".split('');
+    s[6]="......BBBB......".split('');
+    // big bat ears at top corners of head
+    s[0]=".....B....B.....".split('');
+    s[1]=".....B....B.....".split('');
+  }
+  if(mind >= 22){
+    // sonar dome / sleeker cowl
+    s[1]="....BB....BB....".split('');
+    s[0]="....BB....BB....".split('');
+  }
+
+  // WEALTH — belt, cape, gilded edges
+  if(wealth >= 2){
+    // belt
+    s[11]="....gggggggg....".split('');
+  }
+  if(wealth >= 8){
+    // shoulder pad highlights — gold accents at outer shoulders
+    let row = [..."................"];
+    for(let i = 4; i <= 11; i++) row[i] = 'B';
+    row[5] = 'g'; row[10] = 'g';
+    s[7] = row;
+  }
+  if(wealth >= 14){
+    // cape!  add cape behind body
+    for(let r=7; r<=20; r++){
+      if(s[r][2] === '.') s[r][2] = 'b';
+      if(s[r][13] === '.') s[r][13] = 'b';
+    }
+    for(let r=7; r<=18; r++){
+      if(s[r][1] === '.') s[r][1] = 'b';
+      if(s[r][14] === '.') s[r][14] = 'b';
+    }
+    // outer cape edge
+    for(let r=10; r<=17; r++){
+      if(s[r][0] === '.') s[r][0] = 'b';
+      if(s[r][15] === '.') s[r][15] = 'b';
+    }
+  }
+  if(wealth >= 20){
+    // gold cape clasp at neck
+    s[7][6]='g'; s[7][9]='g';
+  }
+  if(wealth >= 26){
+    // bat symbol on chest — yellow oval (the classic 90s)
+    s[8][7]='g'; s[8][8]='g';
+    s[9][6]='g'; s[9][7]='k'; s[9][8]='k'; s[9][9]='g';
+    s[10][7]='g'; s[10][8]='g';
+  }
+  if(wealth >= 29){
+    // bright gold belt
+    s[11]="....GGGGGGGG....".split('');
+  }
+
+  // ALLIES — sidekick silhouettes drawn beside (Robin small, Alfred shadow, etc.)
+  // Drawn after main figure below, via separate routine.
+
+  // SOUL — aura, gentle warmth around figure
+  // (handled via radial rays in HTML, lit when soul >= 10)
+
+  // PROJECT/MISC: nothing on protagonist directly.
+
+  // Render the sprite
+  for(let r=0;r<s.length;r++){
+    for(let c=0;c<s[r].length;c++){
+      const ch = s[r][c];
+      const color = COLOR[ch];
+      if(!color) continue;
+      pctx.fillStyle = color;
+      pctx.fillRect(c*scale, r*scale, scale, scale);
+    }
+  }
+
+  // ALLIES — draw companions at base of frame
+  // Robin (small) next to Bruce when allies >= 4
+  if(allies >= 4){
+    const robin = [
+      "..rr..",
+      ".ryyr.",
+      "..yy..",
+      ".aaaA.",
+      ".aAAa.",
+      "..aa..",
+      ".ff.ff",
+      ".ff.ff",
+    ];
+    drawSprite(pctx, robin, 6, 168, 6);
+  }
+  // Alfred (taller, butler) on the other side when allies >= 2
+  if(allies >= 2){
+    const alfred = [
+      "..ff..",
+      ".fyyf.",
+      "..yy..",
+      ".0000.",
+      ".0000.",
+      ".0000.",
+      ".ff.ff",
+      ".ff.ff",
+    ];
+    drawSprite(pctx, alfred, 120, 168, 5);
+  }
+  // Nightwing (Dick adult) — when allies >= 15
+  if(allies >= 15){
+    const nw = [
+      "..ss..",
+      ".syys.",
+      "..yy..",
+      ".0BB0.",
+      ".0BB0.",
+      ".0BB0.",
+      ".ff.ff",
+      ".ff.ff",
+    ];
+    drawSprite(pctx, nw, 6, 130, 5);
+  }
+  // Oracle (Barbara, computer screen) — when allies >= 17
+  if(allies >= 17){
+    const oracle = [
+      "ggggggg",
+      "gAAAAAg",
+      "gAaaaAg",
+      "gAaAaAg",
+      "gAaaaAg",
+      "ggggggg",
+      "..ggg..",
+    ];
+    drawSprite(pctx, oracle, 124, 130, 4);
+  }
+
+  // SOUL — gold/warm aura under feet, glows when soul high
+  if(soul >= 10){
+    document.getElementById('protag-rays').classList.add('lit');
+  } else {
+    document.getElementById('protag-rays').classList.remove('lit');
+  }
+
+  // CODENAME progression
+  const codenames = [
+    "The Boy in the Alley",       // 0–4
+    "The Trainee",                // 5–9
+    "The Drifter",                // 10–14
+    "The Nomad",                  // 15–24
+    "The Hood",                   // 25–34
+    "The Bat (rumored)",          // 35–49
+    "The Batman",                 // 50–74
+    "The Dark Knight",            // 75–99
+    "The Legend",                 // 100–129
+    "BECOMING.",                  // 130+
+  ];
+  const cidx = total <= 4 ? 0 : total <= 9 ? 1 : total <= 14 ? 2 : total <= 24 ? 3
+             : total <= 34 ? 4 : total <= 49 ? 5 : total <= 74 ? 6 : total <= 99 ? 7
+             : total <= 129 ? 8 : 9;
+  document.getElementById('protag-codename').textContent = codenames[cidx];
+  document.getElementById('protag-stage').textContent = `— composite level ${total} —`;
+  document.getElementById('composite-display').textContent = `LVL ${total}`;
+}
+
+/* ─── GOTHAM CANVAS ─────────────────────────────────────────────
+   Skyline that grows. Stage based on composite level/2.
+   Day/night via real clock.
+   ──────────────────────────────────────────────────────────────── */
+const gotham = document.getElementById('gotham-canvas');
+const gctx = gotham.getContext('2d');
+gctx.imageSmoothingEnabled = false;
+
+const stars = Array.from({length: 30}, () => ({
+  x: Math.floor(Math.random()*320),
+  y: Math.floor(Math.random()*80),
+  ph: Math.random()*Math.PI*2,
+}));
+
+function drawGotham(){
+  const total = sumLevels(state);
+  gctx.clearRect(0,0,320,140);
+
+  // Sky based on hour
+  const h = new Date().getHours();
+  let skyTop, skyBot;
+  if(h<5)       { skyTop="#040308"; skyBot="#0a0815"; }
+  else if(h<8)  { skyTop="#1a1228"; skyBot="#4a2a3a"; }
+  else if(h<11) { skyTop="#3a4a6e"; skyBot="#8a7a6a"; }
+  else if(h<17) { skyTop="#5a7090"; skyBot="#a89070"; }
+  else if(h<20) { skyTop="#3a2a4a"; skyBot="#9a4a3a"; }
+  else          { skyTop="#040308"; skyBot="#0a0815"; }
+
+  for(let y=0; y<140; y++){
+    const t = y/140;
+    gctx.fillStyle = lerpHex(skyTop, skyBot, t);
+    gctx.fillRect(0, y, 320, 1);
+  }
+
+  // Stars (night)
+  if(h<6 || h>=19){
+    const t = Date.now()/1000;
+    for(const s of stars){
+      gctx.globalAlpha = 0.4 + 0.5 * Math.sin(t + s.ph);
+      gctx.fillStyle = '#e6e0d0';
+      gctx.fillRect(s.x, s.y, 1, 1);
+    }
+    gctx.globalAlpha = 1;
+  }
+
+  // Moon or sun
+  if(h<6 || h>=19){
+    gctx.fillStyle = "#e6e0d0";
+    fillCircle(gctx, 280, 30, 8);
+    gctx.fillStyle = lerpHex(skyTop, skyBot, 0.3);
+    fillCircle(gctx, 275, 27, 7);
+  } else {
+    gctx.fillStyle = "#f0c668";
+    fillCircle(gctx, 280, 30, 8);
+    gctx.fillStyle = "#c9a24e";
+    fillCircle(gctx, 280, 30, 5);
+  }
+
+  // Bat-signal in clouds if a signal is lit
+  if(state.signal){
+    const t = Date.now()/600;
+    const pulse = 0.5 + 0.5*Math.sin(t);
+    gctx.globalAlpha = 0.3 + pulse*0.3;
+    gctx.fillStyle = "#f0c668";
+    fillCircle(gctx, 160, 35, 22);
+    gctx.fillStyle = "#0a0815";
+    drawBatGlyph(gctx, 160, 35, 1);
+    gctx.globalAlpha = 1;
+  }
+
+  // Buildings — array of building specs grows with total level
+  const buildings = generateBuildings(total);
+  for(const b of buildings){
+    drawBuilding(gctx, b);
+  }
+
+  // Ground line / street
+  gctx.fillStyle = "#0a0815";
+  gctx.fillRect(0, 130, 320, 10);
+
+  // Stage label
+  const stages = [
+    "CRIME ALLEY",            //  0–4
+    "PARK ROW",               //  5–9
+    "OLD GOTHAM",             // 10–19
+    "EAST END",               // 20–34
+    "ROBBINSVILLE",           // 35–54
+    "DIAMOND DISTRICT",       // 55–74
+    "GOTHAM HEIGHTS",         // 75–99
+    "BRISTOL — WAYNE MANOR",  // 100–124
+    "WAYNE TOWER",            // 125–149
+    "GOTHAM PROTECTED",       // 150+
+  ];
+  const idx = Math.min(stages.length-1, Math.floor(total/15));
+  document.getElementById('gotham-rank').textContent = stages[idx];
+  document.getElementById('gotham-stage').textContent = stages[idx].toLowerCase();
+  const hour = new Date().getHours();
+  document.getElementById('gotham-time').textContent =
+    (hour<6 || hour>=19) ? "— GOTHAM AT NIGHT —" : "— GOTHAM BY DAY —";
+}
+
+function generateBuildings(total){
+  // Deterministic procedural skyline; richer with higher total.
+  // Each building: {x,w,h,style,lit}
+  const list = [];
+  const seed = 42;
+  const rand = mulberry32(seed);
+
+  const count = Math.min(8 + Math.floor(total/3), 22);
+  let x = 4;
+  for(let i=0; i<count; i++){
+    const baseH = 30 + rand()*70 + Math.min(total*1.5, 50);
+    const h = Math.min(110, Math.floor(baseH));
+    const w = 14 + Math.floor(rand()*18);
+    const ornate = total >= 30 && rand() < 0.3;
+    const flat   = rand() < 0.4;
+    list.push({
+      x, w, h,
+      style: ornate ? 'ornate' : (flat ? 'flat' : 'standard'),
+      lit: rand() < (0.4 + Math.min(total/100, 0.5)),
+    });
+    x += w + 2 + Math.floor(rand()*4);
+    if(x > 320) break;
+  }
+  // Add Wayne Tower if level high
+  if(total >= 60){
+    list.push({x:140, w:24, h:120, style:'wayne', lit:true});
+  }
+  if(total >= 100){
+    // Wayne Manor silhouette on right edge
+    list.push({x:285, w:32, h:50, style:'manor', lit:true});
+  }
+  return list;
+}
+
+function drawBuilding(ctx, b){
+  const baseY = 130;
+  const yTop = baseY - b.h;
+  if(b.style === 'manor'){
+    // Wayne Manor — wider, with gables
+    ctx.fillStyle = "#08080d";
+    ctx.fillRect(b.x, yTop, b.w, b.h);
+    ctx.fillRect(b.x+2, yTop-4, b.w-4, 6);
+    ctx.fillRect(b.x+10, yTop-10, b.w-20, 8);
+    // lit windows — gold
+    if(b.lit){
+      ctx.fillStyle = "#c9a24e";
+      ctx.fillRect(b.x+4, yTop+10, 3, 4);
+      ctx.fillRect(b.x+12, yTop+10, 3, 4);
+      ctx.fillRect(b.x+20, yTop+10, 3, 4);
+      ctx.fillRect(b.x+4, yTop+22, 3, 4);
+      ctx.fillRect(b.x+20, yTop+22, 3, 4);
+    }
+    return;
+  }
+  if(b.style === 'wayne'){
+    // Wayne Tower — tall art deco
+    ctx.fillStyle = "#0a0a14";
+    ctx.fillRect(b.x, yTop, b.w, b.h);
+    ctx.fillStyle = "#1a1a26";
+    ctx.fillRect(b.x+2, yTop, b.w-4, b.h);
+    // spire
+    ctx.fillStyle = "#0a0a14";
+    ctx.fillRect(b.x + Math.floor(b.w/2)-1, yTop-8, 2, 8);
+    // gold trim
+    ctx.fillStyle = "#c9a24e";
+    ctx.fillRect(b.x, yTop+10, b.w, 1);
+    ctx.fillRect(b.x, yTop+25, b.w, 1);
+    ctx.fillRect(b.x, yTop+40, b.w, 1);
+    // logo W
+    ctx.fillStyle = "#f0c668";
+    ctx.fillRect(b.x+Math.floor(b.w/2)-2, yTop+50, 4, 4);
+    // windows
+    for(let yy=yTop+5; yy<baseY-5; yy+=5){
+      for(let xx=b.x+3; xx<b.x+b.w-3; xx+=4){
+        ctx.fillStyle = (Math.random()<0.7)?"#c9a24e":"#1a1a26";
+        ctx.fillRect(xx, yy, 2, 2);
+      }
+    }
+    return;
+  }
+  // standard buildings
+  ctx.fillStyle = "#0a0a14";
+  ctx.fillRect(b.x, yTop, b.w, b.h);
+  ctx.fillStyle = "#13131e";
+  ctx.fillRect(b.x+1, yTop, b.w-2, b.h);
+
+  // roofline detail
+  if(b.style === 'ornate'){
+    ctx.fillStyle = "#0a0a14";
+    ctx.fillRect(b.x-1, yTop-2, b.w+2, 2);
+    ctx.fillRect(b.x+2, yTop-5, b.w-4, 3);
+    // gargoyle dot
+    ctx.fillStyle = "#1a1a26";
+    ctx.fillRect(b.x+1, yTop-4, 1, 2);
+    ctx.fillRect(b.x+b.w-2, yTop-4, 1, 2);
+  } else if(b.style === 'flat'){
+    ctx.fillStyle = "#0a0a14";
+    ctx.fillRect(b.x-1, yTop-1, b.w+2, 2);
+  }
+
+  // windows
+  if(b.lit){
+    for(let yy=yTop+4; yy<baseY-4; yy+=5){
+      for(let xx=b.x+2; xx<b.x+b.w-2; xx+=4){
+        ctx.fillStyle = (Math.random()<0.5) ? "#c9a24e" : "#0a0a14";
+        ctx.fillRect(xx, yy, 2, 2);
+      }
+    }
+  }
+}
+
+function fillCircle(ctx, cx, cy, r){
+  for(let y=-r;y<=r;y++)
+    for(let x=-r;x<=r;x++)
+      if(x*x+y*y<=r*r) ctx.fillRect(cx+x, cy+y, 1, 1);
+}
+function drawBatGlyph(ctx, cx, cy, scale){
+  const glyph = [
+    "............",
+    "..k.k....k.k",
+    ".kk.kkkkkk.k",
+    "kkkkkkkkkkkk",
+    ".kkkkkkkkkk.",
+    "...kkkkkkk..",
+    "............",
+  ];
+  // (simpler) Reuse drawSprite
+  drawSprite(ctx, glyph, cx-6*scale, cy-3*scale, scale);
+}
+function lerpHex(a,b,t){
+  const ah=parseInt(a.slice(1),16), bh=parseInt(b.slice(1),16);
+  const ar=(ah>>16)&255, ag=(ah>>8)&255, ab=ah&255;
+  const br=(bh>>16)&255, bg=(bh>>8)&255, bb=bh&255;
+  return `rgb(${Math.round(ar+(br-ar)*t)},${Math.round(ag+(bg-ag)*t)},${Math.round(ab+(bb-ab)*t)})`;
+}
+function mulberry32(a){
+  return function(){
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* ─── BATMOBILE CANVAS ─────────────────────────────────────────
+   Procedural pieces added per project upgrade. Drawn at scale 4.
+   ──────────────────────────────────────────────────────────────── */
+const bmCanvas = document.getElementById('batmobile-canvas');
+const bctx = bmCanvas.getContext('2d');
+bctx.imageSmoothingEnabled = false;
+
+function drawBatmobile(){
+  bctx.clearRect(0,0,220,120);
+  const proj = state.sectors.project.lvl;
+  const scale = 4;
+
+  // Backdrop — garage / batcave hint
+  bctx.fillStyle = "#0a0a14";
+  bctx.fillRect(0, 90, 220, 30);    // floor
+
+  // Skateboard if level 0
+  if(proj === 0){
+    // simple skateboard
+    bctx.fillStyle = "#3a382f";
+    bctx.fillRect(60, 70, 100, 6);
+    bctx.fillStyle = "#1d1d2a";
+    fillCircle(bctx, 70, 80, 5);
+    fillCircle(bctx, 150, 80, 5);
+    document.getElementById('batmobile-rank').textContent = "SKATEBOARD";
+    document.getElementById('batmobile-stage').textContent = "—  wheels, at least  —";
+    return;
+  }
+
+  // Vehicle body grows by tier
+  // tier index 1..30
+  // wheels first
+  // chassis: rectangle 80px wide that elongates and changes shape
+  let bodyW = 60 + Math.min(proj*4, 100);
+  let bodyH = 18 + Math.min(proj*0.5, 14);
+  let bodyX = (220 - bodyW)/2;
+  let bodyY = 70 - bodyH;
+
+  // Wheel diameter grows
+  const wheelR = 6 + Math.min(Math.floor(proj/4), 5);
+
+  // CHASSIS color: starts grey, becomes black with gold accents
+  let chassisColor = proj < 6 ? "#3a3a4a" : (proj < 14 ? "#1d1d2a" : "#08080a");
+  let chassisEdge  = proj < 6 ? "#1a1a26" : "#0a0a14";
+
+  // wheels (always)
+  bctx.fillStyle = "#0a0a14";
+  fillCircle(bctx, bodyX+wheelR+2, 80, wheelR);
+  fillCircle(bctx, bodyX+bodyW-wheelR-2, 80, wheelR);
+  bctx.fillStyle = "#3a3a4a";
+  fillCircle(bctx, bodyX+wheelR+2, 80, wheelR-2);
+  fillCircle(bctx, bodyX+bodyW-wheelR-2, 80, wheelR-2);
+
+  // chassis
+  bctx.fillStyle = chassisColor;
+  bctx.fillRect(bodyX, bodyY, bodyW, bodyH);
+  // beveled edge top
+  bctx.fillStyle = chassisEdge;
+  bctx.fillRect(bodyX, bodyY+bodyH-2, bodyW, 2);
+
+  // Roof / cockpit at certain levels
+  if(proj >= 3){
+    const roofW = bodyW * 0.5;
+    const roofX = bodyX + (bodyW-roofW)/2;
+    const roofY = bodyY - 8;
+    bctx.fillStyle = chassisColor;
+    bctx.fillRect(roofX, roofY, roofW, 8);
+    // windshield
+    bctx.fillStyle = "#3a4a6e";
+    bctx.fillRect(roofX+2, roofY+2, roofW-4, 4);
+  }
+  // Armored plating
+  if(proj >= 7){
+    bctx.fillStyle = chassisEdge;
+    bctx.fillRect(bodyX-2, bodyY+4, 2, bodyH-8);
+    bctx.fillRect(bodyX+bodyW, bodyY+4, 2, bodyH-8);
+  }
+  // Smokescreen rig pipes
+  if(proj >= 9){
+    bctx.fillStyle = "#3a382f";
+    bctx.fillRect(bodyX+bodyW-3, bodyY+bodyH-6, 6, 3);
+    bctx.fillRect(bodyX-3, bodyY+bodyH-6, 6, 3);
+  }
+  // Afterburner
+  if(proj >= 10){
+    bctx.fillStyle = "#bf3b50";
+    bctx.fillRect(bodyX-5, bodyY+bodyH/2, 4, 3);
+    bctx.fillStyle = "#f0c668";
+    bctx.fillRect(bodyX-7, bodyY+bodyH/2+1, 2, 1);
+  }
+  // Front rocket pods (left/right) — appear at 14/15
+  if(proj >= 14){
+    bctx.fillStyle = chassisEdge;
+    bctx.fillRect(bodyX+bodyW-10, bodyY-3, 8, 3);
+  }
+  if(proj >= 15){
+    bctx.fillStyle = chassisEdge;
+    bctx.fillRect(bodyX+2, bodyY-3, 8, 3);
+  }
+  // Forward gun
+  if(proj >= 13){
+    bctx.fillStyle = "#5a5a6a";
+    bctx.fillRect(bodyX+bodyW, bodyY + bodyH/2 - 1, 6, 2);
+  }
+  // Bat insignia (gold) on roof — when 26+
+  if(proj >= 26){
+    bctx.fillStyle = "#c9a24e";
+    bctx.fillRect(bodyX + bodyW/2 - 6, bodyY - 4, 12, 1);
+    bctx.fillStyle = "#f0c668";
+    bctx.fillRect(bodyX + bodyW/2 - 2, bodyY - 5, 4, 1);
+  }
+  // Stealth coat — vantablack overlay, slight gradient
+  if(proj >= 29){
+    bctx.globalAlpha = 0.3;
+    bctx.fillStyle = "#000";
+    bctx.fillRect(bodyX-2, bodyY-12, bodyW+4, bodyH+14);
+    bctx.globalAlpha = 1;
+  }
+  // Hover/flight package — small bat-jets underneath
+  if(proj >= 23){
+    bctx.fillStyle = "#c9a24e";
+    bctx.fillRect(bodyX+10, 88, 4, 3);
+    bctx.fillRect(bodyX+bodyW-14, 88, 4, 3);
+    bctx.fillStyle = "#bf3b50";
+    bctx.fillRect(bodyX+11, 91, 2, 1);
+    bctx.fillRect(bodyX+bodyW-13, 91, 2, 1);
+  }
+
+  // Headlight flicker
+  if(proj >= 6){
+    const flicker = (Date.now()/500)%2 < 1 ? "#f0c668" : "#c9a24e";
+    bctx.fillStyle = flicker;
+    bctx.fillRect(bodyX+bodyW-1, bodyY + bodyH/2, 1, 2);
+  }
+
+  // Label
+  const ranks = [
+    "CHASSIS",   "WHEELED",  "STEERING",   "COCKPIT",     "IGNITION",
+    "PLATED I",  "PLATED II","SMOKE RIG",  "AFTERBURNER", "EJECTOR",
+    "RAMMING",   "GUN",      "ROCKETS L",  "ROCKETS R",   "TUMBLER",
+    "EXTENDED",  "STEALTH",  "EMP",        "GRAPPLE",     "AUTOPILOT",
+    "PURSUIT",   "SUBMERGE", "HOVER",      "STABLE",      "AERIAL",
+    "BAT-POD",   "UPLINK",   "VANTABLACK", "FINAL"
+  ];
+  const idx = Math.min(ranks.length-1, Math.max(0, proj-1));
+  document.getElementById('batmobile-rank').textContent =
+    proj === 0 ? "SKATEBOARD" : ranks[idx];
+  document.getElementById('batmobile-stage').textContent =
+    proj === 0 ? "—  starter ride  —" : `—  upgrade ${proj} / 30  —`;
+}
+
+/* ─── RA'S CANVAS — small portrait ─────────────────────────────── */
+const rasCanvas = document.getElementById('ras-canvas');
+const rcCtx = rasCanvas.getContext('2d');
+rcCtx.imageSmoothingEnabled = false;
+function drawRas(){
+  rcCtx.clearRect(0,0,64,64);
+  // Ra's: hood, gaunt face, white goatee, red glow behind
+  const sprite = [
+    "................",
+    "....pppppppp....",
+    "...ppPPpppppp...",
+    "..pp........pp..",
+    ".pp..yyyyyy..pp.",
+    ".pp..yWyyWy..pp.",
+    "..pp.yyyyyy.pp..",
+    "..pp.yWWWWy.pp..",
+    "..pp..yyyy..pp..",
+    "...pp.yyyy.pp...",
+    "....pppppppp....",
+    "...pppppppppp...",
+    "..pppppppppppp..",
+    "..pppppppppppp..",
+    "...pp......pp...",
+    "................",
+  ];
+  drawSprite(rcCtx, sprite, 0, 0, 4);
+  // glowing eye
+  const t = Math.floor(Date.now()/400)%2;
+  rcCtx.fillStyle = t ? "#bf3b50" : "#8e2030";
+  rcCtx.fillRect(5*4, 5*4, 4, 4);
+  rcCtx.fillRect(9*4, 5*4, 4, 4);
+}
+
+/* ─── SIGNAL CANVAS ────────────────────────────────────────────── */
+const sigCanvas = document.getElementById('signal-canvas');
+const sigCtx = sigCanvas.getContext('2d');
+sigCtx.imageSmoothingEnabled = false;
+function drawSignal(){
+  sigCtx.clearRect(0,0,180,120);
+  // Searchlight beam
+  const t = Date.now()/800;
+  const has = !!state.signal;
+  // beam
+  if(has){
+    const beamAlpha = 0.4 + 0.2*Math.sin(t);
+    sigCtx.globalAlpha = beamAlpha;
+    sigCtx.fillStyle = "#c9a24e";
+    sigCtx.beginPath();
+    sigCtx.moveTo(40, 110);
+    sigCtx.lineTo(90, 10);
+    sigCtx.lineTo(170, 10);
+    sigCtx.lineTo(150, 110);
+    sigCtx.closePath();
+    sigCtx.fill();
+    sigCtx.globalAlpha = 1;
+  }
+  // searchlight base
+  sigCtx.fillStyle = "#1a1a26";
+  sigCtx.fillRect(30, 100, 30, 12);
+  sigCtx.fillStyle = "#3a3a4a";
+  sigCtx.fillRect(34, 96, 22, 6);
+  // bat on disc
+  sigCtx.fillStyle = has ? "#f0c668" : "#3a3a4a";
+  fillCircle(sigCtx, 130, 50, 26);
+  sigCtx.fillStyle = "#0a0815";
+  // bat shape
+  drawSprite(sigCtx, [
+    "............",
+    "k..........k",
+    "kk.kkkkkk.kk",
+    ".kkkkkkkkkk.",
+    "..kkkkkkkk..",
+    "...kk..kk...",
+  ], 130-24, 38, 4);
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   TASK + XP LOGIC
+   ═════════════════════════════════════════════════════════════════ */
+function xpReq(lvl){
+  // 25 base + 5 per level — slow ramp at start, steeper later
+  return 25 + lvl * 5;
+}
+function xpFor(sev){
+  return ({MINOR:5, STD:10, MAJOR:20, CRITICAL:35})[sev] || 10;
+}
+function decayHours(sev){
+  return ({MINOR:72, STD:48, MAJOR:36, CRITICAL:24})[sev] || 48;
+}
+function isFailing(t){
+  if(t.done) return false;
+  const hrs = (Date.now() - t.createdAt) / 3600000;
+  return hrs >= decayHours(t.sev);
+}
+function sumLevels(s){
+  return Object.values(s.sectors).reduce((a,b)=>a+b.lvl, 0);
+}
+
+function addXp(sectorKey, amount){
+  const sec = state.sectors[sectorKey];
+  sec.xp += amount;
+  let leveled = [];
+  while(sec.lvl < UPGRADES[sectorKey].length && sec.xp >= xpReq(sec.lvl)){
+    sec.xp -= xpReq(sec.lvl);
+    sec.lvl++;
+    sec.unlocked.push(sec.lvl);
+    leveled.push(UPGRADES[sectorKey][sec.lvl-1]);
+  }
+  return leveled;
+}
+
+function commitTask(text, sector, sev, rogue){
+  state.tasks.push({
+    id: uid(),
+    text, sector, sev,
+    rogue: rogue || null,
+    createdAt: Date.now(),
+    done: false,
+  });
+  save();
+  renderAll();
+}
+
+function executeTask(id, ev){
+  const idx = state.tasks.findIndex(t => t.id === id);
+  if(idx < 0) return;
+  const t = state.tasks[idx];
+  t.done = true;
+  t.doneAt = Date.now();
+
+  // XP — full reward if not failing, half if failing
+  const reward = isFailing(t) ? Math.ceil(xpFor(t.sev)/2) : xpFor(t.sev);
+  const leveled = addXp(t.sector, reward);
+
+  // Rogue HP — deal damage if attached
+  if(t.rogue){
+    const r = state.rogues.find(rr => rr.id === t.rogue);
+    if(r && !r.defeated){
+      const dmg = ({MINOR:5, STD:10, MAJOR:20, CRITICAL:35})[t.sev] || 10;
+      r.hp -= dmg;
+      if(r.hp <= 0){ r.hp = 0; r.defeated = true; toast(`ROGUE DEFEATED`, r.name); }
+    }
+  }
+
+  // Completion log for streak
+  if(!state.completionLog.includes(todayKey())) state.completionLog.push(todayKey());
+
+  // Move to closed
+  state.closedTasks.unshift(t);
+  state.tasks.splice(idx, 1);
+
+  // Clear signal if it was on this task
+  if(state.signal && state.signal.taskId === id) state.signal = null;
+
+  save();
+  renderAll();
+  if(ev){ sparks(ev.clientX, ev.clientY); }
+  if(leveled.length){
+    for(const name of leveled) toast(`UPGRADE ACQUIRED`, name);
+    rasSpeak();  // ra's reacts
+  }
+}
+
+function deleteTask(id){
+  if(!confirm("Discard this mission? Bruce does not quit.")) return;
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  if(state.signal && state.signal.taskId === id) state.signal = null;
+  save();
+  renderAll();
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   PENALTY  ·  failing tasks slowly bleed XP from their sector
+   Triggered on load + every 30 minutes.
+   ═════════════════════════════════════════════════════════════════ */
+function applyPenalties(){
+  let anyFailing = false;
+  for(const t of state.tasks){
+    if(!isFailing(t)) continue;
+    anyFailing = true;
+    // Only deduct once per ~6 hours per task to avoid spirals
+    const lastBleed = t._lastBleed || 0;
+    if(Date.now() - lastBleed < 6*3600*1000) continue;
+    const sec = state.sectors[t.sector];
+    const bleed = ({MINOR:2, STD:5, MAJOR:10, CRITICAL:15})[t.sev] || 5;
+    sec.xp -= bleed;
+    if(sec.xp < 0){
+      if(sec.lvl > 0){
+        sec.lvl--;
+        if(sec.unlocked.length) sec.unlocked.pop();
+        sec.xp = xpReq(sec.lvl) - 5;
+      } else {
+        sec.xp = 0;
+      }
+    }
+    t._lastBleed = Date.now();
+    state.failedCount++;
+  }
+  if(anyFailing){
+    document.body.classList.add('fear-toxin');
+    setTimeout(() => document.body.classList.remove('fear-toxin'), 1500);
+    rasSpeak();
+  }
+  save();
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   ROGUES
+   ═════════════════════════════════════════════════════════════════ */
+function addRogue(name){
+  state.rogues.push({
+    id: uid(),
+    name,
+    hp: 100,
+    maxHp: 100,
+    defeated: false,
+    createdAt: Date.now(),
+  });
+  save();
+  renderRogues();
+  renderRogueDropdown();
+}
+
+function strikeRogue(id){
+  const r = state.rogues.find(rr => rr.id === id);
+  if(!r || r.defeated) return;
+  r.hp -= 10;
+  if(r.hp <= 0){ r.hp = 0; r.defeated = true; toast(`ROGUE DEFEATED`, r.name); }
+  save();
+  renderRogues();
+}
+
+function reviveRogue(id){
+  const r = state.rogues.find(rr => rr.id === id);
+  if(!r) return;
+  r.hp = r.maxHp;
+  r.defeated = false;
+  save();
+  renderRogues();
+}
+
+function deleteRogue(id){
+  if(!confirm("Remove this rogue from the gallery?")) return;
+  state.rogues = state.rogues.filter(r => r.id !== id);
+  save();
+  renderRogues();
+  renderRogueDropdown();
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   MANTRAS
+   ═════════════════════════════════════════════════════════════════ */
+function addMantra(text){
+  state.mantras.push({text, who:"SELF"});
+  save();
+  renderMantras();
+}
+function deleteMantra(idx){
+  state.mantras.splice(idx, 1);
+  save();
+  renderMantras();
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   BAT-SIGNAL — choose today's critical mission
+   ═════════════════════════════════════════════════════════════════ */
+function chooseSignal(){
+  // Pick the highest severity open task
+  const order = {CRITICAL:0, MAJOR:1, STD:2, MINOR:3};
+  const cand = [...state.tasks].sort((a,b) =>
+    order[a.sev]-order[b.sev] || (a.createdAt - b.createdAt));
+  if(cand.length === 0){
+    state.signal = null;
+  } else {
+    state.signal = {taskId: cand[0].id, date: todayKey()};
+  }
+  save();
+  renderSignal();
+  renderGotham();
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   STREAK
+   ═════════════════════════════════════════════════════════════════ */
+function computeStreak(){
+  let streak = 0;
+  for(let i=0;;i++){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const k = d.toISOString().slice(0,10);
+    if(state.completionLog.includes(k)) streak++;
+    else if(i===0) break;
+    else break;
+  }
+  return streak;
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   RENDERERS
+   ═════════════════════════════════════════════════════════════════ */
+const SECTORS_META = [
+  {key:"body",    name:"Body",   sigil:"⚔",  roman:"I",   sub:"the discipline"},
+  {key:"mind",    name:"Mind",   sigil:"⌬",  roman:"II",  sub:"the detective"},
+  {key:"wealth",  name:"Wealth", sigil:"₿",  roman:"III", sub:"the empire"},
+  {key:"allies",  name:"Allies", sigil:"⌬",  roman:"IV",  sub:"the family"},
+  {key:"soul",    name:"Soul",   sigil:"☥",  roman:"V",   sub:"the why"},
+];
+
+function renderSectorsStrip(){
+  const c = document.getElementById('sectors-container');
+  c.innerHTML = SECTORS_META.map(m => {
+    const s = state.sectors[m.key];
+    const lvl = s.lvl;
+    const req = xpReq(s.lvl);
+    const pct = Math.min(100, (s.xp / req) * 100);
+    const itemName = UPGRADES[m.key][Math.max(0, lvl-1)] || "—";
+    const sel = state.selectedSector === m.key ? "active" : "";
+    return `
+      <div class="sector ${sel}" data-key="${m.key}">
+        <span class="glyph-rank">${m.roman}</span>
+        <span class="sigil">${m.sigil}</span>
+        <div>
+          <div class="ttl">${m.name} <em>${m.sub}</em></div>
+        </div>
+        <div class="lvl">${lvl}<small>LEVEL</small></div>
+        <div class="xp-bar"><div class="fill" style="width:${pct}%"></div></div>
+        <div class="item">${lvl > 0 ? itemName : "— not yet trained —"}</div>
+      </div>`;
+  }).join('');
+  c.querySelectorAll('.sector').forEach(el => {
+    el.addEventListener('click', () => {
+      state.selectedSector = el.dataset.key;
+      save();
+      renderSectorsStrip();
+      renderSectorDetail();
+    });
+  });
+}
+
+function renderSectorDetail(){
+  const key = state.selectedSector;
+  const meta = SECTORS_META.find(m => m.key === key) || {name:"Project", sub:"the work"};
+  const s = state.sectors[key];
+  const total = UPGRADES[key].length;
+  document.getElementById('detail-title').textContent = `The ${meta.name} — ${meta.sub}`;
+  document.getElementById('detail-progress').textContent = `${s.lvl} / ${total} unlocked`;
+  const track = UPGRADES[key].map((name, i) => {
+    const cls = (i+1 < s.lvl) ? 'unlocked' : (i+1 === s.lvl ? 'unlocked current' : '');
+    const status = (i+1 < s.lvl) ? '✓' : (i+1 === s.lvl ? 'CURRENT' : `${xpReq(i)}xp`);
+    return `<div class="upgrade-row ${cls}">
+      <span class="idx">${String(i+1).padStart(2,'0')}</span>
+      <span class="name">${escapeHtml(name)}</span>
+      <span class="stat">${status}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('detail-track').innerHTML = track;
+}
+
+function renderTasks(){
+  const filter = document.querySelector('#case-tabs button.active').dataset.filter;
+  let list;
+  if(filter === 'open')        list = state.tasks.filter(t => !isFailing(t));
+  else if(filter === 'failing') list = state.tasks.filter(t => isFailing(t));
+  else if(filter === 'done')   list = state.closedTasks.slice(0, 30);
+  else                          list = [...state.tasks, ...state.closedTasks.slice(0, 30)];
+
+  list.sort((a, b) => {
+    if(a.done !== b.done) return a.done ? 1 : -1;
+    const sev = {CRITICAL:0, MAJOR:1, STD:2, MINOR:3};
+    return (sev[a.sev]||5) - (sev[b.sev]||5) || a.createdAt - b.createdAt;
+  });
+
+  const c = document.getElementById('task-list');
+  if(list.length === 0){
+    c.innerHTML = `<div class="empty-state">No cases here. Either you've finished, or you haven't started.</div>`;
+  } else {
+    c.innerHTML = list.map(t => {
+      const ageHrs = ((Date.now() - t.createdAt) / 3600000).toFixed(1);
+      const failing = isFailing(t);
+      const cls = `${t.done ? 'done' : ''} ${failing ? 'failing' : ''}`;
+      const sectorMeta = SECTORS_META.find(m => m.key === t.sector) || {name:"Project"};
+      const rogueBadge = t.rogue ? (() => {
+        const r = state.rogues.find(rr => rr.id === t.rogue);
+        return r ? `<span class="badge-vil" title="vs ${escapeHtml(r.name)}">VS ${escapeHtml(r.name.toUpperCase())}</span>` : '';
+      })() : '';
+      return `<div class="task ${cls}">
+        <span class="mark" data-id="${t.id}">${t.done ? '✦' : '◇'}</span>
+        <span class="title">${escapeHtml(t.text)} ${rogueBadge}</span>
+        <span class="sev ${t.sev}">${t.sev}</span>
+        <span class="meta">${sectorMeta.name.toUpperCase()} · ${ageHrs}h</span>
+        <button class="del" data-id="${t.id}">✕</button>
+      </div>`;
+    }).join('');
+    c.querySelectorAll('.mark').forEach(el => {
+      el.addEventListener('click', e => executeTask(el.dataset.id, e));
+    });
+    c.querySelectorAll('.del').forEach(el => {
+      el.addEventListener('click', () => deleteTask(el.dataset.id));
+    });
+  }
+  const openCount = state.tasks.length;
+  const failingCount = state.tasks.filter(t => isFailing(t)).length;
+  document.getElementById('case-stat').textContent =
+    `${openCount} OPEN · ${failingCount} FAILING`;
+}
+
+function renderRogues(){
+  const c = document.getElementById('rogues-list');
+  if(state.rogues.length === 0){
+    c.innerHTML = `<div class="empty-state">No demons yet. Name the ones you fight.</div>`;
+    return;
+  }
+  c.innerHTML = state.rogues.map(r => {
+    const pct = (r.hp / r.maxHp) * 100;
+    return `<div class="rogue ${r.defeated ? 'defeated' : ''}">
+      <div class="strike">
+        ${r.defeated
+          ? `<button data-act="revive" data-id="${r.id}">▸ REVIVE</button>`
+          : `<button data-act="strike" data-id="${r.id}">▸ STRIKE</button>`}
+        <button data-act="del" class="del" data-id="${r.id}">✕</button>
+      </div>
+      <div class="name">${escapeHtml(r.name)}</div>
+      <div class="hp">${r.defeated ? 'DEFEATED' : `HP ${r.hp} / ${r.maxHp}`}</div>
+      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+  c.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      if(btn.dataset.act === 'strike') strikeRogue(id);
+      else if(btn.dataset.act === 'revive') reviveRogue(id);
+      else if(btn.dataset.act === 'del') deleteRogue(id);
+    });
+  });
+}
+
+function renderRogueDropdown(){
+  const dd = document.getElementById('task-rogue');
+  const undefeated = state.rogues.filter(r => !r.defeated);
+  dd.innerHTML = `<option value="">No Rogue</option>` +
+    undefeated.map(r => `<option value="${r.id}">vs ${escapeHtml(r.name)}</option>`).join('');
+}
+
+function renderMantras(){
+  const c = document.getElementById('mantra-list');
+  if(state.mantras.length === 0){
+    c.innerHTML = `<div class="empty-state">No mantras. Name what you swear by.</div>`;
+    return;
+  }
+  c.innerHTML = state.mantras.map((m, i) =>
+    `<div class="mantra">
+      "${escapeHtml(m.text)}"
+      <span class="who">— ${escapeHtml(m.who || 'SELF')}</span>
+      <button class="del" data-i="${i}">✕</button>
+    </div>`
+  ).join('');
+  c.querySelectorAll('.del').forEach(el => {
+    el.addEventListener('click', () => deleteMantra(parseInt(el.dataset.i,10)));
+  });
+}
+
+function renderSignal(){
+  const t = state.signal ? state.tasks.find(x => x.id === state.signal.taskId) : null;
+  if(t){
+    document.getElementById('signal-task').textContent = `"${t.text}"`;
+    document.getElementById('signal-meta').textContent =
+      `${t.sev} · sector: ${t.sector.toUpperCase()} · the city is watching`;
+  } else {
+    document.getElementById('signal-task').innerHTML =
+      `<span class="signal-empty">no signal lit. choose a critical case from the file.</span>`;
+    document.getElementById('signal-meta').textContent = `— quiet night —`;
+  }
+}
+
+function renderMetrics(){
+  const totalDone = state.closedTasks.length;
+  const streak = computeStreak();
+  const failed = state.failedCount;
+  const totalRogues = state.rogues.length;
+  const defeated = state.rogues.filter(r => r.defeated).length;
+  let upgCount = 0;
+  for(const k in state.sectors) upgCount += state.sectors[k].lvl;
+  const days = Math.max(1, Math.floor(
+    (Date.now() - new Date(state.firstNight).getTime()) / 86400000) + 1);
+
+  document.getElementById('m-tasks').textContent = totalDone;
+  document.getElementById('m-streak').textContent = streak;
+  document.getElementById('m-failed').textContent = failed;
+  document.getElementById('m-rogues').textContent = `${defeated}/${totalRogues}`;
+  document.getElementById('m-upg').textContent = upgCount;
+  document.getElementById('m-days').textContent = days;
+}
+
+function renderGotham(){ drawGotham(); }
+
+function renderAll(){
+  drawProtagonist();
+  drawGotham();
+  drawBatmobile();
+  drawRas();
+  drawSignal();
+  renderSectorsStrip();
+  renderSectorDetail();
+  renderTasks();
+  renderRogues();
+  renderRogueDropdown();
+  renderMantras();
+  renderSignal();
+  renderMetrics();
+  updateProgressionTier();
+}
+
+function updateProgressionTier(){
+  const total = sumLevels(state);
+  const tier = Math.min(10, Math.max(1, Math.floor(total / 12) + 1));
+  for(let i=1; i<=10; i++) document.body.classList.remove('progression-tier-'+i);
+  document.body.classList.add('progression-tier-'+tier);
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   EFFECTS  ·  sparks + toast
+   ═════════════════════════════════════════════════════════════════ */
+function sparks(x, y){
+  for(let i=0; i<12; i++){
+    const el = document.createElement('div');
+    el.className = 'spark';
+    el.style.left = x+'px';
+    el.style.top  = y+'px';
+    const a = (i/12)*Math.PI*2;
+    el.style.setProperty('--dx', Math.cos(a) * 80 + 'px');
+    el.style.setProperty('--dy', Math.sin(a) * 80 + 'px');
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+}
+
+const toastEl = document.getElementById('toast');
+const toastText = document.getElementById('toast-text');
+let toastTimer = null;
+function toast(label, text){
+  toastEl.querySelector('.label').textContent = label;
+  toastText.textContent = text;
+  toastEl.classList.add('show');
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2800);
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   UTIL
+   ═════════════════════════════════════════════════════════════════ */
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   EVENT WIRING
+   ═════════════════════════════════════════════════════════════════ */
+document.getElementById('task-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const text   = document.getElementById('task-input').value.trim();
+  const sector = document.getElementById('task-sector').value;
+  const sev    = document.getElementById('task-sev').value;
+  const rogue  = document.getElementById('task-rogue').value;
+  if(!text) return;
+  commitTask(text, sector, sev, rogue);
+  document.getElementById('task-input').value = '';
+  // re-pick signal if it was empty
+  if(!state.signal && sev === 'CRITICAL') chooseSignal();
+});
+
+document.querySelectorAll('#case-tabs button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#case-tabs button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    renderTasks();
+  });
+});
+
+document.getElementById('rogue-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = document.getElementById('rogue-input').value.trim();
+  if(!v) return;
+  addRogue(v);
+  document.getElementById('rogue-input').value = '';
+});
+
+document.getElementById('mantra-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = document.getElementById('mantra-input').value.trim();
+  if(!v) return;
+  addMantra(v);
+  document.getElementById('mantra-input').value = '';
+});
+
+document.getElementById('ras-next').addEventListener('click', rasSpeak);
+
+const noodle = document.getElementById('noodle-text');
+noodle.value = state.noodling;
+function noodleLen(){
+  const words = noodle.value.trim() === '' ? 0 :
+    noodle.value.trim().split(/\s+/).length;
+  document.getElementById('noodle-len').textContent = `${words}w`;
+}
+noodle.addEventListener('input', () => {
+  state.noodling = noodle.value;
+  state.noodleSavedAt = Date.now();
+  document.getElementById('noodle-saved').textContent =
+    'saved · ' + new Date().toLocaleTimeString();
+  noodleLen();
+  save();
+});
+noodleLen();
+document.getElementById('noodle-saved').textContent =
+  state.noodleSavedAt ? 'last saved · ' + new Date(state.noodleSavedAt).toLocaleTimeString() : '— · —';
+
+/* Click signal art to refresh which case is the signal */
+document.querySelector('.signal-art').addEventListener('click', () => {
+  chooseSignal();
+});
+
+/* ═════════════════════════════════════════════════════════════════
+   CLOCK + TICK
+   ═════════════════════════════════════════════════════════════════ */
+function tickClock(){
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('clock-time').textContent = `${hh}:${mm}`;
+  const opts = {weekday:'short', month:'short', day:'numeric'};
+  document.getElementById('clock-date').textContent =
+    d.toLocaleDateString(undefined, opts).toLowerCase();
+  document.getElementById('footer-tag').textContent =
+    `MMXXVI · ${d.getFullYear()}`;
+}
+setInterval(tickClock, 1000);
+
+/* Light animation tick — gotham + signal + cat + batmobile redraws ~5fps */
+setInterval(() => {
+  drawGotham();
+  drawSignal();
+  drawRas();
+  drawBatmobile();
+}, 250);
+
+/* Periodic penalty check */
+setInterval(() => {
+  applyPenalties();
+  renderTasks();
+  renderMetrics();
+}, 30 * 60 * 1000);
+
+/* ═════════════════════════════════════════════════════════════════
+   INIT
+   ═════════════════════════════════════════════════════════════════ */
+function init(){
+  applyPenalties();
+  rasSpeak();
+  // Auto-choose signal if none and critical exists
+  if(!state.signal){
+    const crit = state.tasks.find(t => t.sev === 'CRITICAL');
+    if(crit) state.signal = {taskId: crit.id, date: todayKey()};
+  }
+  renderAll();
+  tickClock();
+}
+init();
+
+</script>
+</body>
+</html>
