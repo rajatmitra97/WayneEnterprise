@@ -1,6 +1,6 @@
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '../store'
-import { SECTORS, SECTOR_ORDER, UPGRADES, LEVELS_PER_SECTOR, xpForLevel } from '../constants'
+import { SECTORS, SECTOR_ORDER, UPGRADES, LEVELS_PER_SECTOR, xpForLevel, MODES } from '../constants'
 import Panel from './Panel'
 
 function SectorCard({ k, active, onClick }) {
@@ -13,6 +13,10 @@ function SectorCard({ k, active, onClick }) {
   return (
     <motion.button
       layout
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
@@ -22,16 +26,16 @@ function SectorCard({ k, active, onClick }) {
     >
       {active && <span className="absolute inset-x-0 top-0 h-0.5" style={{ background: meta.accent }} />}
       <div className="flex items-start justify-between">
-        <span className="font-display text-[22px] leading-none" style={{ color: meta.accent }}>
+        <span className="font-display text-[24px] leading-none" style={{ color: meta.accent }}>
           {meta.sigil}
         </span>
-        <span className="font-display text-[9px] tracking-[0.3em] text-ash">{meta.house}</span>
+        <span className="font-display text-[10px] tracking-[0.28em] text-ash">{meta.house}</span>
       </div>
-      <div className="font-serif text-[15px] font-medium text-bone">{meta.name}</div>
+      <div className="font-display text-[16px] font-semibold uppercase tracking-[0.04em] text-bone">{meta.name}</div>
       <div className="flex items-end justify-between">
-        <span className="font-display text-[24px] leading-none" style={{ color: meta.accent }}>
+        <span className="font-display text-[30px] font-bold leading-none tabular-nums" style={{ color: meta.accent }}>
           {s.lvl}
-          <span className="ml-1 text-[10px] tracking-[0.15em] text-ash">/ {LEVELS_PER_SECTOR}</span>
+          <span className="ml-1 text-[11px] font-normal tracking-[0.15em] text-ash">/ {LEVELS_PER_SECTOR}</span>
         </span>
       </div>
       <div className="h-[3px] w-full overflow-hidden bg-rule">
@@ -51,23 +55,36 @@ function SectorCard({ k, active, onClick }) {
 export default function Sectors() {
   const selected = useStore((s) => s.selectedSector)
   const select = useStore((s) => s.selectSector)
-  const sector = useStore((s) => s.sectors[selected])
-  const meta = SECTORS[selected]
-  const ladder = UPGRADES[selected]
+  const mode = useStore((s) => s.mode)
+  const visible = MODES[mode].sectors
+  // keep the inspected sector valid for the active identity
+  const activeKey = visible.includes(selected) ? selected : visible[0]
+  const sector = useStore((s) => s.sectors[activeKey])
+  const meta = SECTORS[activeKey]
+  const ladder = UPGRADES[activeKey]
 
   return (
     <>
       <Panel
         label="IV · The Pillars"
-        title={<>The <em className="not-italic font-light text-bone-dim">Six Pillars</em></>}
+        title={
+          <>
+            The <em className="not-italic font-light text-bone-dim">Pillars</em>
+            <span className="ml-2 font-display text-[11px] tracking-[0.2em]" style={{ color: MODES[mode].accent }}>
+              / {mode === 'wayne' ? 'PUBLIC LIFE' : 'THE CRUSADE'}
+            </span>
+          </>
+        }
         right="click to inspect"
         className="col-span-12 lg:col-span-8"
       >
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-          {SECTOR_ORDER.map((k) => (
-            <SectorCard key={k} k={k} active={selected === k} onClick={() => select(k)} />
-          ))}
-        </div>
+        <motion.div layout className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+          <AnimatePresence mode="popLayout">
+            {SECTOR_ORDER.filter((k) => visible.includes(k)).map((k) => (
+              <SectorCard key={k} k={k} active={activeKey === k} onClick={() => select(k)} />
+            ))}
+          </AnimatePresence>
+        </motion.div>
       </Panel>
 
       <Panel

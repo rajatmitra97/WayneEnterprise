@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from './store'
-import { ALFRED } from './constants'
+import { ALFRED, BROODING_IDLE_MS } from './constants'
+import IntroSequence from './components/IntroSequence'
 import TopBar from './components/TopBar'
+import BatPanel from './components/BatPanel'
+import BroodingOverlay from './components/BroodingOverlay'
 import Protagonist from './components/Protagonist'
 import Sectors from './components/Sectors'
 import CaseFile from './components/CaseFile'
@@ -11,17 +15,57 @@ import Analytics from './components/Analytics'
 import Metrics from './components/Metrics'
 import BackupPanel from './components/BackupPanel'
 import AlfredToaster from './components/AlfredToaster'
+import DetectiveVision from './components/DetectiveVision'
+import LazarusPit from './components/LazarusPit'
+import Armory from './components/Armory'
+import FlyingGadget from './components/FlyingGadget'
+import CommandConsole from './components/CommandConsole'
+import Wiretap from './components/Wiretap'
+import BlackgateKanban from './components/BlackgateKanban'
+import LongHalloweenHeatmap from './components/LongHalloweenHeatmap'
+import DispatchGrid from './components/DispatchGrid'
 
 const pick = (a) => a[Math.floor(Math.random() * a.length)]
 
 export default function App() {
   const rolloverCheck = useStore((s) => s.rolloverCheck)
+  const checkChrono = useStore((s) => s.checkChrono)
   const pushToast = useStore((s) => s.pushToast)
   const lastFearToxin = useStore((s) => s.lastFearToxin)
   const openCount = useStore((s) => s.tasks.filter((t) => !t.done).length)
+  const mode = useStore((s) => s.mode)
   const [toxin, setToxin] = useState(false)
+  const [brooding, setBrooding] = useState(false)
+  // Cortical Sync intro: `introDone` unmounts the overlay; `revealed` portals
+  // the dashboard up from the darkness in lockstep with the dive.
+  const [introDone, setIntroDone] = useState(false)
+  const [revealed, setRevealed] = useState(false)
   const fearRef = useRef(lastFearToxin)
   const idleRef = useRef(Date.now())
+  const broodRef = useRef(Date.now())
+
+  // Resolve any focus session left dangling by a reload/close.
+  // Survived the clock → reward; interrupted → it counts as breaking focus.
+  useEffect(() => {
+    const { focus, completeFocus, breakFocus } = useStore.getState()
+    if (focus) {
+      if (Date.now() >= focus.endsAt) completeFocus()
+      else breakFocus()
+    }
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Failsafe — never leave the OS stranded behind the intro. If the Cortical
+  // Sync hasn't revealed within 6s (animation error, reduced-motion, etc.),
+  // force the portal open.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setRevealed(true)
+      setIntroDone(true)
+    }, 6000)
+    return () => clearTimeout(t)
+  }, [])
 
   // Midnight rollover — fail overdue cases, re-arm patrol routes.
   useEffect(() => {
@@ -29,6 +73,13 @@ export default function App() {
     const t = setInterval(rolloverCheck, 60_000)
     return () => clearInterval(t)
   }, [rolloverCheck])
+
+  // Chrono-Notifications — poll the Dispatch Grid for opening patrol slots.
+  useEffect(() => {
+    checkChrono()
+    const t = setInterval(checkChrono, 20_000)
+    return () => clearInterval(t)
+  }, [checkChrono])
 
   // Fear-toxin screen flash whenever a penalty fires.
   useEffect(() => {
@@ -58,12 +109,61 @@ export default function App() {
     }
   }, [openCount, pushToast])
 
-  return (
-    <div className={toxin ? 'animate-fear-toxin' : ''}>
-      <AlfredToaster />
-      <TopBar />
+  // Brooding Mode — after 3 minutes idle, the OS broods. Any activity exits.
+  useEffect(() => {
+    const activity = () => {
+      broodRef.current = Date.now()
+      setBrooding((b) => (b ? false : b))
+    }
+    window.addEventListener('pointermove', activity)
+    window.addEventListener('pointerdown', activity)
+    window.addEventListener('keydown', activity)
+    const t = setInterval(() => {
+      if (Date.now() - broodRef.current > BROODING_IDLE_MS) setBrooding(true)
+    }, 5_000)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('pointermove', activity)
+      window.removeEventListener('pointerdown', activity)
+      window.removeEventListener('keydown', activity)
+    }
+  }, [])
 
-      <main className="mx-auto grid max-w-[1480px] grid-cols-12 gap-4 px-4 pb-24 pt-6 md:px-9">
+  return (
+    <div className={`app-root mode-${mode} ${toxin ? 'animate-fear-toxin' : ''}`}>
+      {/* THE CORTICAL SYNC — plays over a hidden dashboard, then dissolves */}
+      <AnimatePresence>
+        {!introDone && (
+          <IntroSequence onReveal={() => setRevealed(true)} onComplete={() => setIntroDone(true)} />
+        )}
+      </AnimatePresence>
+
+      <AlfredToaster />
+      <CommandConsole />
+      <Wiretap />
+      <FlyingGadget />
+      <DetectiveVision />
+      <BroodingOverlay active={brooding} onExit={() => setBrooding(false)} />
+      <LazarusPit />
+
+      {/* The OS itself — materialises from inside his mind as the dive completes.
+          NOTE: ease X-values must stay within [0,1] — easeOutExpo, valid + heavy. */}
+      <motion.div
+        initial={{ opacity: 0, scale: 1.12, filter: 'blur(14px)' }}
+        animate={
+          revealed
+            ? { opacity: 1, scale: 1, filter: 'blur(0px)' }
+            : { opacity: 0, scale: 1.12, filter: 'blur(14px)' }
+        }
+        transition={{ duration: 1.3, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <TopBar />
+
+        <main className="mx-auto grid max-w-[1480px] grid-cols-12 gap-4 px-4 pb-24 pt-6 md:px-9">
+        {/* The centerpiece */}
+        <BatPanel />
+        {/* The new heart — the weekly patrol schedule, directly below the BatPanel */}
+        <DispatchGrid />
         {/* Row 1 — the hero & the pillars */}
         <Protagonist />
         <Sectors />
@@ -73,18 +173,25 @@ export default function App() {
         <RasPanel />
         {/* Row 3 — the Batcomputer */}
         <Analytics />
-        {/* Row 4 — telemetry & the vault */}
-        <Metrics />
+        {/* Row 4 — Blackgate processing */}
+        <BlackgateKanban />
+        {/* Row 5 — the Long Halloween */}
+        <LongHalloweenHeatmap />
+        {/* Row 6 — the armory & the vault */}
+        <Armory />
         <BackupPanel />
-      </main>
+        {/* Row 7 — telemetry */}
+        <Metrics />
+        </main>
 
-      <footer className="flex items-center justify-between border-t border-rule px-6 py-4 font-display text-[10px] uppercase tracking-[0.3em] text-ash-dim md:px-9">
-        <span>WAYNE OS · THE DARK KNIGHT PROTOCOL · V4</span>
-        <em className="font-serif text-[11px] normal-case italic tracking-normal text-ash">
-          “It's not who you are underneath, but what you do, that defines you.”
-        </em>
-        <span>MMXXVI</span>
-      </footer>
+        <footer className="flex items-center justify-between border-t border-rule px-6 py-4 font-display text-[10px] uppercase tracking-[0.3em] text-ash-dim md:px-9">
+          <span>WAYNE OS · THE DARK KNIGHT PROTOCOL · V5</span>
+          <em className="font-serif text-[11px] normal-case italic tracking-normal text-ash">
+            “It's not who you are underneath, but what you do, that defines you.”
+          </em>
+          <span>MMXXVI</span>
+        </footer>
+      </motion.div>
     </div>
   )
 }

@@ -1,13 +1,14 @@
 /* The Alfred Protocol — in-app toast stack. Browser notifications are
    fired from the store; these are the on-screen, framed messages. */
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bell, ShieldAlert, Coins, X } from 'lucide-react'
+import { Bell, ShieldAlert, Coins, X, Radio } from 'lucide-react'
 import { useStore } from '../store'
 
 const TONES = {
   gold: { border: 'border-gold/70', label: 'text-gold', icon: Bell, glow: 'shadow-gold' },
   blood: { border: 'border-blood/70', label: 'text-blood', icon: ShieldAlert, glow: 'shadow-arkham' },
   chaos: { border: 'border-chaos/70', label: 'text-chaos', icon: Coins, glow: '' },
+  hud: { border: 'border-hud/70', label: 'text-hud', icon: Radio, glow: '' },
 }
 
 export default function AlfredToaster() {

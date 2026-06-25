@@ -35,7 +35,7 @@ export default function BackupPanel() {
     <Panel
       label="XIV · Wayne-Tech Vault"
       title={<>Encrypted <em className="not-italic font-light text-bone-dim">Backup</em></>}
-      className="col-span-12"
+      className="col-span-12 lg:col-span-6"
     >
       <p className="mb-4 flex items-start gap-2 font-serif text-[13.5px] italic text-bone-dim">
         <ShieldCheck size={16} className="mt-0.5 shrink-0 text-acid" />

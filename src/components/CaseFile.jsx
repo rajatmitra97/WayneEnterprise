@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Plus, ChevronDown } from 'lucide-react'
 import { useStore, sortByThreat } from '../store'
-import { SECTORS, SECTOR_ORDER, THREAT, THREAT_ORDER, RECUR, WEEKDAYS_FULL } from '../constants'
+import { SECTORS, SECTOR_ORDER, THREAT, THREAT_ORDER, RECUR, WEEKDAYS_FULL, MODES } from '../constants'
 import Panel from './Panel'
 import TaskItem from './TaskItem'
 import EditTaskModal from './EditTaskModal'
+import FocusLauncher from './FocusLauncher'
+import AlibiModal from './AlibiModal'
 
 const TABS = [
   { key: 'open', label: 'Open' },
@@ -18,9 +20,14 @@ export default function CaseFile() {
   const tasks = useStore((s) => s.tasks)
   const closed = useStore((s) => s.closedTasks)
   const addTask = useStore((s) => s.addTask)
+  const openCommand = useStore((s) => s.openCommand)
+  const mode = useStore((s) => s.mode)
+  const visibleSectors = MODES[mode].sectors
 
   const [tab, setTab] = useState('open')
   const [editing, setEditing] = useState(null)
+  const [focusing, setFocusing] = useState(null)
+  const [alibiing, setAlibiing] = useState(null)
   const [adv, setAdv] = useState(false)
 
   // entry form
@@ -30,10 +37,13 @@ export default function CaseFile() {
   const [recur, setRecur] = useState(RECUR.NONE)
   const [days, setDays] = useState([])
 
+  // entry sector must belong to the active identity
+  const effSector = visibleSectors.includes(sector) ? sector : visibleSectors[0]
+
   const submit = (e) => {
     e.preventDefault()
     if (!title.trim()) return
-    addTask({ title, sector, threat, recur, days })
+    addTask({ title, sector: effSector, threat, recur, days })
     setTitle('')
     setThreat('MEDIUM')
     setRecur(RECUR.NONE)
@@ -42,13 +52,19 @@ export default function CaseFile() {
 
   const toggleDay = (d) => setDays((ds) => (ds.includes(d) ? ds.filter((x) => x !== d) : [...ds, d].sort()))
 
-  const open = useMemo(() => sortByThreat(tasks.filter((t) => !t.done)), [tasks])
+  // Cowl boundary: each identity only sees its own sectors' open, on-patrol cases.
+  // (Backlog intel lives at Blackgate until deployed.)
+  const open = useMemo(
+    () => sortByThreat(tasks.filter((t) => !t.done && t.status !== 'backlog' && visibleSectors.includes(t.sector))),
+    [tasks, visibleSectors]
+  )
+  const hiddenCount = tasks.filter((t) => !t.done && t.status !== 'backlog' && !visibleSectors.includes(t.sector)).length
   const list = useMemo(() => {
     if (tab === 'open') return open
     if (tab === 'arkham') return open.filter((t) => t.threat === 'ARKHAM')
-    if (tab === 'routes') return sortByThreat(tasks.filter((t) => t.recur !== RECUR.NONE))
+    if (tab === 'routes') return sortByThreat(tasks.filter((t) => t.recur !== RECUR.NONE && visibleSectors.includes(t.sector)))
     return closed.slice(0, 40)
-  }, [tab, open, tasks, closed])
+  }, [tab, open, tasks, closed, visibleSectors])
 
   const arkhamCount = open.filter((t) => t.threat === 'ARKHAM').length
 
@@ -57,9 +73,21 @@ export default function CaseFile() {
       <Panel
         label="VI · Case File"
         title={<>The <em className="not-italic font-light text-bone-dim">Case File</em></>}
-        right={`${open.length} OPEN · ${arkhamCount} ARKHAM`}
+        right={`${open.length} OPEN · ${arkhamCount} ARKHAM${hiddenCount ? ` · ${hiddenCount} OFF-DUTY` : ''}`}
         className="col-span-12 lg:col-span-8"
       >
+        {/* primary intake — opens the Batcomputer Command Console (Cmd/Ctrl+K) */}
+        <motion.button
+          onClick={openCommand}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          className="hud-corners mb-3 flex w-full items-center justify-center gap-3 border border-hud/50 bg-hud/5 py-3 font-display text-[15px] font-semibold uppercase tracking-[0.2em] text-hud transition hover:bg-hud/15"
+          style={{ boxShadow: '0 0 24px -8px rgba(214,37,22,0.6)' }}
+        >
+          <span className="animate-hud-pulse">◉</span> DECRYPT NEW INTEL
+          <kbd className="ml-1 border border-hud/40 px-1.5 py-0.5 font-mono text-[11px] tracking-normal text-hud/80">⌘K</kbd>
+        </motion.button>
+
         <form onSubmit={submit} className="mb-3">
           <div className="flex gap-2">
             <input
@@ -74,8 +102,8 @@ export default function CaseFile() {
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <select value={sector} onChange={(e) => setSector(e.target.value)} className="field">
-              {SECTOR_ORDER.map((k) => (
+            <select value={effSector} onChange={(e) => setSector(e.target.value)} className="field">
+              {SECTOR_ORDER.filter((k) => visibleSectors.includes(k)).map((k) => (
                 <option key={k} value={k}>{SECTORS[k].name}</option>
               ))}
             </select>
@@ -171,13 +199,17 @@ export default function CaseFile() {
                 </div>
               ))
             ) : (
-              list.map((t) => <TaskItem key={t.id} task={t} onEdit={setEditing} />)
+              list.map((t) => (
+                <TaskItem key={t.id} task={t} onEdit={setEditing} onFocus={setFocusing} onAlibi={setAlibiing} />
+              ))
             )}
           </AnimatePresence>
         </div>
       </Panel>
 
       <EditTaskModal task={editing} onClose={() => setEditing(null)} />
+      <FocusLauncher task={focusing} onClose={() => setFocusing(null)} />
+      <AlibiModal task={alibiing} onClose={() => setAlibiing(null)} />
     </>
   )
 }

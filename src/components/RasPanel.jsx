@@ -1,23 +1,27 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Skull } from 'lucide-react'
-import { useStore } from '../store'
-import { RAS_GENERIC, RAS_PRAISE } from '../constants'
+import { useStore, dominantRogue } from '../store'
+import { RAS_GENERIC, RAS_PRAISE, RAS_ROGUE } from '../constants'
 import Panel from './Panel'
 
 export default function RasPanel() {
   const streak = useStore((s) => s.streak)
   const failed = useStore((s) => s.failedCount)
   const open = useStore((s) => s.tasks.filter((t) => !t.done).length)
+  const rogueStats = useStore((s) => s.rogueStats)
+  const boss = dominantRogue(rogueStats)
 
-  // Ra's praises a strong streak, otherwise mocks — sharper with idle/failure.
+  // Ra's praises a strong streak, otherwise mocks — sharper with idle/failure,
+  // and personal once a nemesis emerges in the Arkham Wing.
   const pool = useMemo(() => {
     if (streak >= 3) return RAS_PRAISE
     const lines = [...RAS_GENERIC]
     if (open >= 3) lines.push(`You hold ${open} open cases. A man with a list is not a man.`)
     if (failed > 0) lines.push(`You have failed ${failed} times. I am keeping count. So is Gotham.`)
+    if (boss) lines.unshift(RAS_ROGUE[boss], RAS_ROGUE[boss]) // weight the nemesis line
     return lines
-  }, [streak, open, failed])
+  }, [streak, open, failed, boss])
 
   const [i, setI] = useState(() => Math.floor(Math.random() * pool.length))
   const line = pool[i % pool.length]
@@ -45,7 +49,7 @@ export default function RasPanel() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className="min-h-[96px] border-l-2 bg-chaos/[0.04] px-4 py-3 font-serif text-[15.5px] italic leading-relaxed text-bone"
-        style={{ borderColor: praising ? '#c9a24e' : '#8a2be2' }}
+        style={{ borderColor: praising ? '#D73423' : '#8a2be2' }}
       >
         “{line}”
         <span className="mt-2 block font-display text-[9px] not-italic tracking-[0.3em] text-chaos">

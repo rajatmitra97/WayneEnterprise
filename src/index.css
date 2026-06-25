@@ -6,6 +6,10 @@
   color-scheme: dark;
 }
 
+/* Directive 4 — base type scaled up for the tactical HUD */
+html {
+  font-size: 17.5px;
+}
 html,
 body,
 #root {
@@ -14,8 +18,8 @@ body,
 
 body {
   margin: 0;
-  background: #050505;
-  color: #e6e0d0;
+  background: #060303; /* crimson-protocol near-black */
+  color: #f2dad6;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-weight: 300;
   -webkit-font-smoothing: antialiased;
@@ -35,43 +39,257 @@ body::after {
 }
 
 ::selection {
-  background: #c9a24e;
-  color: #050505;
+  background: #d73423;
+  color: #060303;
 }
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #3a382f;
+  background: #5a100b;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #6a6759;
+  background: #d62516;
+}
+
+/* ─── COWL TOGGLE — duality theming ─────────────────────────────── */
+.app-root {
+  min-height: 100vh;
+  transition: background 0.6s ease, filter 0.6s ease;
+}
+.mode-batman {
+  background:
+    radial-gradient(ellipse at 50% -10%, #2a0807, #060303 62%);
+}
+/* Wayne Mode — a touch warmer, embers in the dark. */
+.mode-wayne {
+  background: radial-gradient(circle at 50% -10%, #2f0908, #0a0403 62%);
+}
+.mode-wayne .glass {
+  border-color: rgba(255, 52, 34, 0.55) !important;
+}
+.mode-wayne .panel-label {
+  color: #ff5638;
+}
+.mode-batman .glass {
+  border-color: rgba(214, 37, 22, 0.4);
+}
+
+/* ─── DETECTIVE VISION — sonar pulse ─────────────────────────────── */
+.sonar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: 1px solid rgba(90, 170, 230, 0.7);
+  border-radius: 50%;
+  animation: sonar-out 3s ease-out infinite;
+}
+@keyframes sonar-out {
+  0% {
+    transform: scale(0.2);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(26);
+    opacity: 0;
+  }
+}
+@keyframes rain-drift {
+  from { background-position: 0 0; }
+  to { background-position: -60px 600px; }
+}
+.dv-rain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: repeating-linear-gradient(
+    100deg,
+    transparent 0 9px,
+    rgba(150, 200, 240, 0.5) 9px 10px
+  );
+  animation: rain-drift 0.7s linear infinite;
+}
+
+/* ─── BATPANEL — CRT scanlines ───────────────────────────────────── */
+.batpanel-scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.28) 0px,
+    rgba(0, 0, 0, 0.28) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+/* ─── BROODING MODE — rain + glass shatter ───────────────────────── */
+@keyframes brood-rain {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 1200px, -40px 1600px; }
+}
+.brood-rain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.45;
+  background-image: repeating-linear-gradient(
+      105deg,
+      transparent 0 22px,
+      rgba(150, 190, 230, 0.18) 22px 23px
+    ),
+    repeating-linear-gradient(
+      102deg,
+      transparent 0 14px,
+      rgba(180, 210, 240, 0.12) 14px 15px
+    );
+  animation: brood-rain 0.6s linear infinite;
+}
+
+/* ─── LAZARUS PIT — emerald boil ─────────────────────────────────── */
+@keyframes lazarus-boil {
+  0% { transform: translateY(100%) scaleY(0.6); opacity: 0.7; }
+  55% { transform: translateY(0) scaleY(1); opacity: 1; }
+  100% { transform: translateY(0) scaleY(1); opacity: 1; }
+}
+.lazarus-fill {
+  background: radial-gradient(circle at 50% 120%, #2dff9e, #0b9d52 40%, #064d2a 75%, #021a10);
+  filter: saturate(1.4);
+}
+@keyframes lazarus-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-4px, 2px); }
+  50% { transform: translate(3px, -3px); }
+  75% { transform: translate(-2px, 3px); }
+}
+
+/* ─── TACTICAL HUD — corner brackets & chrome ────────────────────── */
+/* Angular bracket frame drawn on the ::before/::after of any .hud-frame */
+.hud-corners::before,
+.hud-corners::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  z-index: 2;
+  border-color: #ff3422; /* hot neon-red */
+  filter: drop-shadow(0 0 4px rgba(255, 52, 34, 0.9));
+}
+.hud-corners::before {
+  top: 6px;
+  left: 6px;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+.hud-corners::after {
+  bottom: 6px;
+  right: 6px;
+  border-bottom: 1px solid;
+  border-right: 1px solid;
+}
+/* faint horizontal scanline texture for tech surfaces */
+.hud-scan {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(214, 37, 22, 0.025) 0px,
+    rgba(214, 37, 22, 0.025) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+/* a thin cyan sweep line running down a container */
+.hud-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14%;
+  background: linear-gradient(to bottom, transparent, rgba(214, 37, 22, 0.12), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── GADGET ARMORY — mechanical transformer unfold ──────────────── */
+@keyframes gadget-deploy {
+  0% { transform: scale(0.6) rotate(-8deg); opacity: 0; filter: blur(4px); }
+  55% { transform: scale(1.08) rotate(2deg); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.gadget-deploy {
+  animation: gadget-deploy 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes spark-ring {
+  0% { transform: scale(0.2); opacity: 0.9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* ─── GCPD DISPATCH — current-hour laser ─────────────────────────── */
+.dispatch-laser {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 26%;
+  background: linear-gradient(to bottom, transparent, rgba(215, 52, 35, 0.32), transparent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ─── DOPAMINE TAKEDOWN — completion stamp ───────────────────────── */
+.case-closed-stamp {
+  font-family: 'Chakra Petch', monospace;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #ff3422;
+  border: 3px solid #ff3422;
+  text-transform: uppercase;
+  box-shadow: 0 0 22px -2px rgba(255, 52, 34, 0.7);
 }
 
 @layer components {
-  /* Glassmorphism panel — the signature surface of the Protocol */
+  /* Glassmorphism panel — onyx surface ringed in glowing neon red */
   .glass {
-    @apply relative rounded-lg border border-rule/80 bg-void-soft/60 backdrop-blur-xl shadow-glass;
+    @apply relative rounded-md border bg-void-soft/70 backdrop-blur-xl;
+    border-color: rgba(214, 37, 22, 0.45);
+    box-shadow:
+      0 0 0 1px rgba(214, 37, 22, 0.12),
+      0 0 20px -5px rgba(255, 52, 34, 0.45),
+      0 10px 44px -14px rgba(0, 0, 0, 0.95),
+      inset 0 1px 0 rgba(255, 80, 60, 0.05);
     background-image: linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.035),
-      rgba(255, 255, 255, 0) 45%
-    );
+        160deg,
+        rgba(214, 37, 22, 0.05),
+        rgba(255, 255, 255, 0) 42%
+      ),
+      repeating-linear-gradient(
+        0deg,
+        rgba(214, 37, 22, 0.02) 0px,
+        rgba(214, 37, 22, 0.02) 1px,
+        transparent 1px,
+        transparent 5px
+      );
   }
   .panel-label {
-    @apply absolute -top-2 left-4 bg-void px-2 font-display text-[11px] uppercase tracking-[0.3em] text-ash;
+    @apply absolute -top-2.5 left-4 bg-void px-2 font-display text-[13px] font-semibold uppercase tracking-[0.28em] text-hud;
+    text-shadow: 0 0 8px rgba(255, 52, 34, 0.7);
   }
   .h-serif {
     @apply font-serif text-bone;
   }
   .btn-gold {
-    @apply font-display uppercase tracking-[0.2em] bg-gold text-void px-4 py-2 transition hover:brightness-110 active:brightness-95;
+    @apply font-display font-semibold uppercase tracking-[0.18em] bg-gold text-void px-4 py-2 text-[14px] transition hover:brightness-110 active:brightness-95;
+  }
+  .btn-hud {
+    @apply font-display font-semibold uppercase tracking-[0.18em] border border-hud/50 text-hud px-4 py-2 text-[13px] transition hover:bg-hud/10 active:scale-95;
   }
   .field {
-    @apply bg-void/80 border border-rule text-bone font-mono text-xs px-3 py-2 outline-none transition focus:border-gold placeholder:text-ash;
+    @apply bg-void/80 border border-rule text-bone font-mono text-[13px] px-3 py-2 outline-none transition focus:border-hud placeholder:text-ash;
   }
 }

@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { useStore, build30DaySeries } from '../store'
 import Panel from './Panel'
+import ArkhamWing from './ArkhamWing'
 
 function verdict(series) {
   const last7 = series.slice(-7).reduce((s, d) => s + d.points, 0)
@@ -39,7 +40,7 @@ function verdict(series) {
   }
 }
 
-const TONE_COLOR = { gold: '#c9a24e', blood: '#b30000', bone: '#a8a395' }
+const TONE_COLOR = { gold: '#D73423', blood: '#D62516', bone: '#a8a395' }
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -81,8 +82,8 @@ export default function Analytics() {
           <AreaChart data={series} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
             <defs>
               <linearGradient id="goldFade" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#c9a24e" stopOpacity={0.55} />
-                <stop offset="100%" stopColor="#c9a24e" stopOpacity={0} />
+                <stop offset="0%" stopColor="#D73423" stopOpacity={0.55} />
+                <stop offset="100%" stopColor="#D73423" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid stroke="#1d1d2a" strokeDasharray="2 4" vertical={false} />
@@ -99,15 +100,15 @@ export default function Analytics() {
               tickLine={false}
               width={34}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#c9a24e', strokeOpacity: 0.3 }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#D73423', strokeOpacity: 0.3 }} />
             <Area
               type="monotone"
               dataKey="points"
-              stroke="#c9a24e"
+              stroke="#D73423"
               strokeWidth={2}
               fill="url(#goldFade)"
               dot={false}
-              activeDot={{ r: 4, fill: '#f0c668', stroke: '#050505' }}
+              activeDot={{ r: 4, fill: '#ff8a4d', stroke: '#050505' }}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -117,6 +118,8 @@ export default function Analytics() {
         <span>BEST NIGHT · {best} XP</span>
         <span>DAILY AVG · {Math.round(total30 / 30)} XP</span>
       </div>
+
+      <ArkhamWing />
     </Panel>
   )
 }
