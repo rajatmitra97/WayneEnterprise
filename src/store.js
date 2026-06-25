@@ -40,6 +40,10 @@ import {
   TWOFACE_STREAK,
   TWOFACE,
   ORACLE_OVERRIDE,
+  SIDEKICK_BY_ID,
+  MUTATION_AGE_MS,
+  MUTATION_IDS,
+  MUTATIONS,
 } from './constants'
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -173,6 +177,9 @@ export const useStore = create(
       // ── GCPD Dispatch Grid (weekly routine) ──
       schedule: {}, // slotKey "wd:mins" → taskId  (repeats weekly)
       notifiedSlots: {}, // "YYYY-MM-DD:wd:mins" → true (chrono de-dupe, reset daily)
+
+      // ── Arkham Mutation Protocol ──
+      riddlerScrambled: [], // task ids whose titles are ciphered by a Riddler mutation
 
       // ── FOUNDATION (full UI lands in the next stage) ──
       contingencies: [], // {id, label, when, then, enabled, armed}
@@ -344,6 +351,9 @@ export const useStore = create(
         if (chaos) get().pushToast('ALFRED', pick(ALFRED.chaos), 'chaos')
         else get().pushToast('ALFRED', pick(ALFRED.done), 'gold')
 
+        // Defeating a Riddler-mutated case breaks the cipher on the backlog.
+        if (t.mutation === 'riddler') set({ riddlerScrambled: [] })
+
         // A completed patrol route re-arms at the next midnight rollover,
         // so nothing to respawn here — see rolloverCheck().
         return { gainedXp, gainedCoins, unlocked, chaos, isSignal }
@@ -412,7 +422,7 @@ export const useStore = create(
             const drained = applyXp(workingSectors, t.sector, -meta.penalty * mult)
             workingSectors = drained.sector
             failed += 1
-            survivors.push({ ...t, locked: true })
+            survivors.push({ ...t, locked: true, lockedAt: Date.now() }) // mutation clock starts now
           } else if (!t.done) {
             survivors.push(t) // healthy, backlog, scheduled-ahead, or awaiting alibi
           }
@@ -535,6 +545,47 @@ export const useStore = create(
             `${pick(ORACLE_OVERRIDE)} → ${task ? task.title : 'scheduled objective'}`,
             'blood'
           )
+        })
+      },
+
+      /* ════════════ BAT-FAMILY NETWORK (delegation) ══════════════ */
+      // Hand a case to a sidekick; it leaves your active board for their queue.
+      assignTaskTo: (id, sidekickId) => {
+        set((st) => ({ tasks: st.tasks.map((t) => (t.id === id ? { ...t, assignedTo: sidekickId } : t)) }))
+        const sk = SIDEKICK_BY_ID[sidekickId]
+        if (sk) get().pushToast(sk.name.toUpperCase(), sk.line, 'gold')
+      },
+      // Pull a delegated case back onto your own board.
+      recallTask: (id) =>
+        set((st) => ({ tasks: st.tasks.map((t) => (t.id === id ? { ...t, assignedTo: null } : t)) })),
+
+      /* ════════════ ARKHAM MUTATION PROTOCOL ════════════════════ */
+      // Run on the rollover tick: any case locked >24h metastasises into a Rogue.
+      mutateOverdueTasks: () => {
+        const st = get()
+        const ripe = st.tasks.filter(
+          (t) => t.locked && !t.mutation && !t.done && t.lockedAt && Date.now() - t.lockedAt > MUTATION_AGE_MS
+        )
+        if (ripe.length === 0) return
+        let scrambled = [...st.riddlerScrambled]
+        const mutatedIds = {}
+        ripe.forEach((t) => {
+          const mut = MUTATION_IDS[Math.floor(Math.random() * MUTATION_IDS.length)]
+          mutatedIds[t.id] = mut
+          get().pushToast(MUTATIONS[mut].rogue.toUpperCase(), MUTATIONS[mut].taunt, 'chaos')
+          if (mut === 'riddler') {
+            // cipher up to 3 random OTHER open cases
+            const pool = st.tasks.filter((x) => x.id !== t.id && !x.done && !x.assignedTo).map((x) => x.id)
+            for (let i = pool.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));[pool[i], pool[j]] = [pool[j], pool[i]]
+            }
+            scrambled = Array.from(new Set([...scrambled, ...pool.slice(0, 3)]))
+          }
+        })
+        set({
+          tasks: st.tasks.map((t) => (mutatedIds[t.id] ? { ...t, mutation: mutatedIds[t.id] } : t)),
+          riddlerScrambled: scrambled,
+          lastFearToxin: Date.now(),
         })
       },
 
@@ -766,6 +817,7 @@ export const useStore = create(
           pendingTwoFace: false,
           schedule: {},
           notifiedSlots: {},
+          riddlerScrambled: [],
           rogueStats: { riddler: 0, freeze: 0, ivy: 0, bane: 0 },
           contingencies: [],
           rnd: [],
@@ -828,9 +880,25 @@ export function build365Series(log) {
   return out
 }
 
+// Active mutations present on the board → drives the OS-wide debuffs.
+// Returns a Set of mutation ids ('freeze' | 'riddler' | 'scarecrow').
+export function selectActiveMutations(tasks) {
+  return new Set(tasks.filter((t) => !t.done && t.mutation).map((t) => t.mutation))
+}
+
+// Group delegated tasks by sidekick id → { nightwing:[...], ... }.
+export function groupBySidekick(tasks) {
+  const out = {}
+  tasks.filter((t) => !t.done && t.assignedTo).forEach((t) => {
+    ;(out[t.assignedTo] ||= []).push(t)
+  })
+  return out
+}
+
 // Group tasks into the three Blackgate columns. `closed` feeds Incarcerated.
+// Delegated cases (assignedTo) are off the board — they're with the family.
 export function groupForKanban(tasks, closedTasks) {
-  const open = tasks.filter((t) => !t.done)
+  const open = tasks.filter((t) => !t.done && !t.assignedTo)
   return {
     backlog: open.filter((t) => t.status === 'backlog'),
     patrol: open.filter((t) => t.status !== 'backlog'),

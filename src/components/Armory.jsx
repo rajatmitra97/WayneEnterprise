@@ -127,6 +127,7 @@ export default function Armory() {
     <Panel
       label="XV · The Armory"
       title="The Armory"
+      instruction="REQUISITION: SPEND WAYNE COINS"
       right={`${owned.length}/${GADGETS.length} · ${coins} WC`}
       className="col-span-12 lg:col-span-6"
       accent="#D62516"

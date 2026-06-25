@@ -64,6 +64,7 @@ export default function Analytics() {
     <Panel
       label="XII · Batcomputer"
       title={<>Historical <em className="not-italic font-light text-bone-dim">Telemetry</em></>}
+      instruction="ANALYSIS: 30-NIGHT DISCIPLINE TREND"
       right={`${total30} XP · 30 NIGHTS`}
       className="col-span-12"
     >

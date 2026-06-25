@@ -12,10 +12,18 @@ import {
   useSpring,
   useTransform,
 } from 'framer-motion'
-import { useStore, selectTiers } from '../store'
+import { useStore, selectTiers, selectCompositeLevel } from '../store'
+import { STAGES, MODES } from '../constants'
 
 // Resolve through Vite's base so assets work in dev AND on GitHub Pages.
 const asset = (p) => `${import.meta.env.BASE_URL}${p}`
+
+// Composite codename from total mastery (decommissioned Protagonist panel).
+function currentStage(total) {
+  let cur = STAGES[0]
+  for (const s of STAGES) if (total >= s.at) cur = s
+  return cur
+}
 
 // Per-image fallback so the panel looks intentional before the 15 composites
 // are dropped into /public/assets. Renders a labelled gradient instead.
@@ -75,7 +83,11 @@ export default function BatPanel() {
   // select the stable sectors reference, then derive tiers locally — avoids
   // re-rendering on unrelated store changes (toasts, focus, etc.).
   const sectors = useStore((s) => s.sectors)
+  const mode = useStore((s) => s.mode)
   const { empireLevel, machineLevel, bodyLevel } = selectTiers({ sectors })
+  const total = selectCompositeLevel({ sectors })
+  const stage = currentStage(total)
+  const identity = MODES[mode]
 
   // raw pointer position, -0.5 … 0.5 within the panel
   const px = useMotionValue(0)
@@ -146,6 +158,21 @@ export default function BatPanel() {
         {/* CRT scanlines + flicker */}
         <div className="batpanel-scanlines pointer-events-none absolute inset-0 z-40" />
         <div className="pointer-events-none absolute inset-0 z-40 animate-flicker bg-[radial-gradient(ellipse_at_50%_0%,rgba(120,160,255,0.05),transparent_55%)]" />
+
+        {/* PROTAGONIST identity — BatPanel is now the sole protagonist panel */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-50 flex items-start justify-between p-4">
+          <div>
+            <div className="font-display text-[11px] font-semibold tracking-[0.35em]" style={{ color: identity.accent }}>
+              {identity.label}
+            </div>
+            <div className="font-serif text-[24px] italic leading-tight text-bone">{stage.codename}</div>
+            <div className="font-mono text-[10px] tracking-[0.1em] text-ash">— {stage.stage} —</div>
+          </div>
+          <div className="text-right">
+            <div className="font-display text-[9px] tracking-[0.3em] text-ash">COMPOSITE</div>
+            <div className="font-display text-[30px] font-bold leading-none text-gold">LV {total}</div>
+          </div>
+        </div>
 
         {/* HUD readout */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-end justify-between p-4">

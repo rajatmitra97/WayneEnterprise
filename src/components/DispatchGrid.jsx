@@ -53,6 +53,7 @@ export default function DispatchGrid() {
     <Panel
       label="II · GCPD Dispatch"
       title="Weekly Patrol Schedule"
+      instruction="DEPLOYMENT GRID: ASSIGN PATROL WINDOWS"
       right={
         <span className="flex items-center gap-2">
           {GRANULARITIES.map((g) => (

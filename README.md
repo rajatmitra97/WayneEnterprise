@@ -111,7 +111,26 @@ telemetry dashboard).
   reminder (prioritising your Bat-Signal / Arkham cases) or a motivation line,
   then peels off. Cyclable and dismissable.
 
-## V6 // The Batman — Gotham palette + GCPD Dispatch (this build)
+## V6 // Consolidation, Wayne Facade, Bat-Family & Mutation (this build)
+
+- **BatPanel = sole protagonist** — `Protagonist.jsx` decommissioned; BatPanel now
+  shows the active identity, codename/stage, and composite LV.
+- **The Billionaire's Facade** — Wayne Mode is a full light, Apple-frosted luxury
+  theme (`wayne-*` tokens; `.mode-wayne` drops neon/scanlines for soft shadows &
+  `backdrop-blur`). Toggle it via the Cowl switch.
+- **Tactical micro-copy** — every major panel header carries a `// INPUT REQUIRED…`
+  style HUD readout (`Panel` `instruction` prop, `text-gotham-slate`).
+- **Layout re-route** — strict vertical flow: BatPanel → Command Bar (add task) →
+  Dispatch Grid → bottom grid (backlog, network, analytics, armory, telemetry).
+- **The Bat-Family Network** — Delegate opens a sidekick menu (Nightwing, Batgirl,
+  Red Hood, Robin, Oracle); `components/SidekickRoster.jsx` tracks each one's
+  queue; `assignTaskTo`/`recallTask` in the store; "report back" = complete.
+- **The Arkham Mutation Protocol** — cases left overdue >24h mutate into Rogues
+  with live OS debuffs: **Mr. Freeze** (MotionConfig + CSS slow everything 3×,
+  icy tint), **Riddler** (scrambles 3 backlog titles into symbols), **Scarecrow**
+  (fear-toxin jump-scare every 2 min). Defeat the case to lift the debuff.
+
+## V6 — earlier: Gotham palette + GCPD Dispatch
 
 - **Gotham palette** — `tailwind.config.js` now carries `gotham.{navy,cyan,slate,
   rust,blood}`, and the existing semantic tokens were re-pointed (navy base, rust

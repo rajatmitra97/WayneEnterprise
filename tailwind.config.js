@@ -31,6 +31,23 @@ export default {
         batblue: '#9c5248',
         hud: { DEFAULT: '#D62516', dim: '#5a100b' }, // neon-red HUD / outlines
         neon: '#ff3422', // hot neon-red for glowing outlines
+
+        // ─── THE BILLIONAIRE'S FACADE — Wayne Mode penthouse palette ──
+        wayne: {
+          base: '#fefefe', // blinding white background
+          surface: '#f9f6f2', // expensive ivory cards
+          border: '#e2e2e4', // subtle dividers / glass borders
+          muted: '#e1dbd6', // disabled / background text
+          dark: '#d1d1d3', // metallic silver — text & active icons
+          ink: '#4a4a4f', // (added) readable graphite for body copy
+        },
+
+        // ─── ARKHAM MUTATION debuff hues ──────────────────────────
+        mutate: {
+          freeze: '#7ad7ff', // Mr. Freeze ice-blue
+          riddler: '#39ff14', // Riddler neon green
+          scarecrow: '#c9a73a', // Scarecrow sickly yellow-brown
+        },
       },
       fontFamily: {
         // Tactical HUD: angular display + technical condensed + data mono.
@@ -81,6 +98,15 @@ export default {
           '0%,100%': { boxShadow: '0 0 0 0 rgba(214,37,22,0)' },
           '50%': { boxShadow: '0 0 22px -2px rgba(255,52,34,0.85), inset 0 0 16px -6px rgba(214,37,22,0.7)' },
         },
+        // Scarecrow fear-toxin jump-scare — violent shake + hue lurch
+        'scare-glitch': {
+          '0%,100%': { transform: 'translate(0,0)', filter: 'none' },
+          '10%': { transform: 'translate(-8px,4px) skewX(3deg)', filter: 'hue-rotate(40deg) saturate(2.4)' },
+          '30%': { transform: 'translate(7px,-5px)', filter: 'hue-rotate(-30deg) saturate(3) contrast(1.3)' },
+          '50%': { transform: 'translate(-5px,6px) skewX(-2deg)', filter: 'hue-rotate(60deg)' },
+          '70%': { transform: 'translate(6px,-3px)', filter: 'hue-rotate(-20deg) saturate(2)' },
+          '90%': { transform: 'translate(-3px,2px)', filter: 'none' },
+        },
       },
       animation: {
         'arkham-pulse': 'arkham-pulse 2s ease-in-out infinite',
@@ -91,6 +117,7 @@ export default {
         'boot-in': 'boot-in 0.6s ease-out both',
         'laser-scan': 'laser-scan 2.6s ease-in-out infinite',
         'slot-glow': 'slot-glow 2.2s ease-in-out infinite',
+        'scare-glitch': 'scare-glitch 0.7s ease-in-out',
       },
     },
   },

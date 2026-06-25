@@ -2,7 +2,7 @@
    a faint cyan scan sweep, and an engraved section label. */
 import { motion } from 'framer-motion'
 
-export default function Panel({ label, title, right, children, className = '', accent }) {
+export default function Panel({ label, title, right, children, className = '', accent, instruction }) {
   return (
     <motion.section
       layout
@@ -18,6 +18,12 @@ export default function Panel({ label, title, right, children, className = '', a
         <div className="hud-sweep animate-scan-sweep" />
       </div>
       {label && <span className="panel-label">{label}</span>}
+      {/* Directive 3 — Batcomputer terminal micro-copy */}
+      {instruction && (
+        <div className="mb-2 font-display text-xs uppercase tracking-widest text-gotham-slate">
+          // {instruction}
+        </div>
+      )}
       {title && (
         <div className="mb-4 flex items-baseline justify-between border-b border-rule pb-2.5">
           <h2 className="font-display text-[24px] font-semibold uppercase tracking-[0.04em] text-bone">

@@ -593,3 +593,43 @@ export const ORACLE_OVERRIDE = [
   'The schedule is law. This block is live. Begin the objective NOW.',
   'Dispatch confirms: your slot just opened. Gotham will not wait.',
 ]
+
+/* ═══════════════════════════════════════════════════════════════════
+   THE BAT-FAMILY NETWORK — delegation roster.
+   icon = lucide-react component name (resolved in SidekickRoster.jsx).
+   ═══════════════════════════════════════════════════════════════════ */
+export const SIDEKICKS = [
+  { id: 'nightwing', name: 'Nightwing', handle: 'DICK GRAYSON', color: '#2f6df6', icon: 'Bird', line: 'On it. Acrobatics included, free of charge.' },
+  { id: 'batgirl', name: 'Batgirl', handle: 'BARBARA / CASS', color: '#7d2ff6', icon: 'Sparkles', line: 'Consider it handled — quietly.' },
+  { id: 'redhood', name: 'Red Hood', handle: 'JASON TODD', color: '#d11f1f', icon: 'Skull', line: 'Fine. My way, though.' },
+  { id: 'robin', name: 'Robin', handle: 'DAMIAN WAYNE', color: '#21a83a', icon: 'Bird', line: 'Tt. Trivial. It is as good as done.' },
+  { id: 'oracle', name: 'Oracle', handle: 'THE NETWORK', color: '#1fb6b6', icon: 'Radio', line: 'Routed and logged. I see everything.' },
+]
+export const SIDEKICK_BY_ID = Object.fromEntries(SIDEKICKS.map((s) => [s.id, s]))
+
+/* ═══════════════════════════════════════════════════════════════════
+   THE ARKHAM MUTATION PROTOCOL — overdue cases metastasise into Rogues.
+   A case left >24h overdue mutates and applies a live OS-wide debuff
+   until it is defeated (completed).
+   ═══════════════════════════════════════════════════════════════════ */
+export const MUTATION_AGE_MS = 24 * 60 * 60 * 1000 // 24h overdue → mutation
+export const MUTATIONS = {
+  freeze: {
+    id: 'freeze', rogue: 'Mr. Freeze', color: '#7ad7ff', cls: 'mutate-freeze',
+    debuff: 'CRYO-FIELD: all motion slowed 3×.',
+    taunt: 'You left it to rot — now everything freezes. Tonight, revenge is best served cold.',
+  },
+  riddler: {
+    id: 'riddler', rogue: 'The Riddler', color: '#39ff14', cls: 'mutate-riddler',
+    debuff: 'CIPHER: three backlog titles scrambled.',
+    taunt: 'Riddle me this: what rots if ignored and scrambles your mind? This case.',
+  },
+  scarecrow: {
+    id: 'scarecrow', rogue: 'Scarecrow', color: '#c9a73a', cls: 'mutate-scarecrow',
+    debuff: 'FEAR-TOXIN: jump-scares every 2 min.',
+    taunt: 'Your procrastination smells of fear. Let me amplify it.',
+  },
+}
+export const MUTATION_IDS = ['freeze', 'riddler', 'scarecrow']
+export const SCARECROW_INTERVAL_MS = 2 * 60 * 1000 // jump-scare cadence
+export const SCRAMBLE_CHARS = '?@#$%&!§¿※†‡▓░▒'

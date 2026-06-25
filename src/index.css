@@ -65,18 +65,114 @@ body::after {
   background:
     radial-gradient(ellipse at 50% -10%, #2a0807, #060303 62%);
 }
-/* Wayne Mode — a touch warmer, embers in the dark. */
-.mode-wayne {
-  background: radial-gradient(circle at 50% -10%, #2f0908, #0a0403 62%);
-}
-.mode-wayne .glass {
-  border-color: rgba(255, 52, 34, 0.55) !important;
-}
-.mode-wayne .panel-label {
-  color: #ff5638;
-}
 .mode-batman .glass {
   border-color: rgba(214, 37, 22, 0.4);
+}
+
+/* ═══ THE BILLIONAIRE'S FACADE — Wayne Mode (light, Apple-frosted luxury) ═══
+   Batcomputer: surfacing the public persona. Dropping tactical overlays. */
+.mode-wayne {
+  background: linear-gradient(180deg, #fefefe, #f4f1ec 90%);
+  color: #4a4a4f;
+}
+body:has(.mode-wayne) {
+  background: #fefefe;
+}
+body:has(.mode-wayne)::after {
+  display: none; /* kill the film grain — reads as dust on the white */
+}
+/* frosted ivory panels — soft shadow, no neon, no scanlines */
+.mode-wayne .glass {
+  background: rgba(249, 246, 242, 0.78) !important;
+  border: 1px solid #e2e2e4 !important;
+  background-image: none !important;
+  box-shadow:
+    0 12px 44px -18px rgba(30, 30, 40, 0.28),
+    0 2px 10px -5px rgba(30, 30, 40, 0.12) !important;
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+.mode-wayne .hud-corners::before,
+.mode-wayne .hud-corners::after {
+  display: none !important;
+}
+.mode-wayne .hud-sweep,
+.mode-wayne .hud-scan,
+.mode-wayne .batpanel-scanlines,
+.mode-wayne .dispatch-laser {
+  display: none !important;
+  background-image: none !important;
+}
+/* light-theme token remap (utility-class overrides win on specificity) */
+.mode-wayne .text-bone { color: #34343a !important; }
+.mode-wayne .text-bone-dim { color: #6e6e74 !important; }
+.mode-wayne .text-ash { color: #9a9aa0 !important; }
+.mode-wayne .text-ash-dim { color: #bcbcc2 !important; }
+.mode-wayne .text-gold,
+.mode-wayne .text-hud,
+.mode-wayne .text-acid { color: #7e7e86 !important; } /* monochrome silver accents */
+.mode-wayne h2 { color: #2e2e34 !important; }
+.mode-wayne .panel-label {
+  color: #9a9aa0 !important;
+  background: #f9f6f2 !important;
+  text-shadow: none !important;
+}
+.mode-wayne .bg-void,
+.mode-wayne .bg-void-soft,
+.mode-wayne .bg-void-card,
+.mode-wayne .bg-void-raised { background-color: #f9f6f2 !important; }
+.mode-wayne [class*='border-rule'] { border-color: #e2e2e4 !important; }
+.mode-wayne .border-b,
+.mode-wayne .border-t { border-color: #e2e2e4 !important; }
+.mode-wayne .btn-gold {
+  background: #2a2a2e !important;
+  color: #fefefe !important;
+}
+.mode-wayne .btn-hud {
+  border-color: #d1d1d3 !important;
+  color: #4a4a4f !important;
+}
+.mode-wayne .field {
+  background: #ffffff !important;
+  border-color: #e2e2e4 !important;
+  color: #34343a !important;
+}
+
+/* ═══ ARKHAM MUTATION PROTOCOL — debuff visuals ═══════════════════════ */
+.mutate-freeze {
+  border-color: #7ad7ff !important;
+  background: rgba(122, 215, 255, 0.1) !important;
+  box-shadow: 0 0 20px -3px rgba(122, 215, 255, 0.6), inset 0 0 26px -8px rgba(122, 215, 255, 0.55) !important;
+}
+.mutate-riddler {
+  border-color: #39ff14 !important;
+  background: rgba(57, 255, 20, 0.08) !important;
+  box-shadow: 0 0 20px -3px rgba(57, 255, 20, 0.55) !important;
+}
+.mutate-scarecrow {
+  border-color: #c9a73a !important;
+  background: rgba(201, 167, 58, 0.1) !important;
+  box-shadow: 0 0 20px -3px rgba(201, 167, 58, 0.5) !important;
+}
+/* Mr. Freeze global debuff — icy tint + frost vignette + EVERYTHING slows */
+.debuff-freeze {
+  filter: hue-rotate(-10deg) saturate(0.82) brightness(0.96);
+}
+.debuff-freeze::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  box-shadow: inset 0 0 180px 50px rgba(122, 215, 255, 0.16);
+}
+.debuff-freeze * {
+  animation-duration: 6s !important;
+  transition-duration: 1.4s !important;
+}
+/* Scarecrow jump-scare — applied briefly to the root on the toxin interval */
+.debuff-scare {
+  animation: scare-glitch 0.7s ease-in-out;
 }
 
 /* ─── DETECTIVE VISION — sonar pulse ─────────────────────────────── */

@@ -3,11 +3,15 @@
    completion sequence (Directive 5): rust flash, CASE CLOSED stamp, a
    batarang slash through the title, a particle burst, then a spring shrink.
    ═══════════════════════════════════════════════════════════════════ */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Pencil, Trash2, Repeat, Radio, Eye, Clock, Baby, Newspaper, Flame } from 'lucide-react'
+import { Check, Pencil, Trash2, Repeat, Radio, Eye, Clock, Users, Newspaper, Flame, Bird, Sparkles, Skull } from 'lucide-react'
 import { useStore } from '../store'
-import { SECTORS, THREAT, RECUR, WEEKDAYS, PREP_DEFAULT_MS } from '../constants'
+import { SECTORS, THREAT, RECUR, WEEKDAYS, PREP_DEFAULT_MS, SIDEKICKS, MUTATIONS, SCRAMBLE_CHARS } from '../constants'
+
+const SK_ICONS = { Bird, Sparkles, Skull, Radio }
+const scramble = (text) =>
+  text.split('').map((c) => (c === ' ' ? ' ' : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)])).join('')
 
 function recurLabel(t) {
   if (t.recur === RECUR.NONE) return null
@@ -46,19 +50,27 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
   const remove = useStore((s) => s.deleteTask)
   const setSignal = useStore((s) => s.setSignal)
   const requirePrep = useStore((s) => s.requirePrep)
-  const delegate = useStore((s) => s.delegateTask)
+  const assignTaskTo = useStore((s) => s.assignTaskTo)
   const signal = useStore((s) => s.signal)
+  const isScrambled = useStore((s) => s.riddlerScrambled.includes(task.id))
 
   const meta = THREAT[task.threat]
   const sector = SECTORS[task.sector] || { accent: '#9c5248', name: task.sector }
   const isArkham = task.threat === 'ARKHAM'
   const isSignal = signal?.taskId === task.id
   const rl = recurLabel(task)
-  const lowThreat = meta.rank <= 1
   const locked = !!task.locked
+  const mutation = task.mutation ? MUTATIONS[task.mutation] : null
+
+  // Riddler cipher — scramble the title (stable until cipher lifts)
+  const displayTitle = useMemo(
+    () => (isScrambled ? scramble(task.title) : task.title),
+    [isScrambled, task.title]
+  )
 
   const [now, setNow] = useState(Date.now())
   const [closing, setClosing] = useState(false)
+  const [delegating, setDelegating] = useState(false)
   const prepActive = task.prepInvoked && task.prepUntil && now < task.prepUntil
   const enraged = task.prepInvoked && task.prepUntil && now >= task.prepUntil && !task.done
 
@@ -75,7 +87,7 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
     setTimeout(() => complete(task.id), 760)
   }
 
-  const accentBorder = enraged ? '#D62516' : locked ? '#D73423' : isArkham ? '#D62516' : `${meta.color}66`
+  const accentBorder = mutation ? mutation.color : enraged ? '#D62516' : locked ? '#D73423' : isArkham ? '#D62516' : `${meta.color}66`
 
   return (
     <motion.div
@@ -84,10 +96,18 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
       animate={{ opacity: task.done ? 0.45 : 1, x: 0, height: 'auto' }}
       exit={{ opacity: 0, scale: 0, transition: { type: 'spring', stiffness: 420, damping: 18 } }}
       transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-      className={`group relative grid grid-cols-[40px_1fr_auto] items-center gap-3 overflow-hidden rounded border-l-2 px-3 py-3 ${
-        enraged ? 'bg-blood/[0.12]' : isArkham ? 'animate-arkham-pulse bg-blood/[0.06]' : locked ? 'bg-gold/[0.05]' : 'border-l-transparent'
+      className={`group relative grid grid-cols-[40px_1fr_auto] items-center gap-3 rounded border-l-2 px-3 py-3 ${
+        mutation
+          ? `border ${mutation.cls} animate-arkham-pulse`
+          : enraged
+          ? 'bg-blood/[0.12]'
+          : isArkham
+          ? 'animate-arkham-pulse bg-blood/[0.06]'
+          : locked
+          ? 'bg-gold/[0.05]'
+          : 'border-l-transparent'
       }`}
-      style={{ borderLeftColor: accentBorder }}
+      style={mutation ? undefined : { borderLeftColor: accentBorder }}
     >
       {/* complete — large target */}
       <button
@@ -103,8 +123,13 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
 
       {/* body — bigger, glanceable type */}
       <div className="min-w-0">
-        <div className={`relative truncate font-tech text-[18px] font-medium leading-tight ${task.done || closing ? 'text-ash' : enraged ? 'text-blood' : 'text-bone'}`}>
-          {task.title}
+        <div
+          className={`relative truncate font-tech text-[18px] font-medium leading-tight ${
+            isScrambled ? 'tracking-[0.12em]' : ''
+          } ${task.done || closing ? 'text-ash' : enraged ? 'text-blood' : 'text-bone'}`}
+          style={mutation ? { color: mutation.color } : isScrambled ? { color: MUTATIONS.riddler.color } : undefined}
+        >
+          {displayTitle}
           {/* batarang slash */}
           {closing && (
             <motion.span
@@ -122,7 +147,12 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
           {isSignal && <span className="flex items-center gap-1 text-gold"><Radio className="h-3.5 w-3.5" /> BAT-SIGNAL ×3</span>}
           {prepActive && <span className="flex items-center gap-1 text-gold"><Clock className="h-3.5 w-3.5" /> PREP {fmt(task.prepUntil - now)}</span>}
           {enraged && <span className="flex items-center gap-1 text-blood"><Flame className="h-3.5 w-3.5" /> ENRAGED · ×10</span>}
-          {locked && <span className="text-gold">CRITICALLY OVERDUE · LOCKED</span>}
+          {locked && !mutation && <span className="text-gold">CRITICALLY OVERDUE · LOCKED</span>}
+          {mutation && (
+            <span className="flex items-center gap-1 font-bold" style={{ color: mutation.color }}>
+              ☣ MUTATED · {mutation.rogue.toUpperCase()} — {mutation.debuff}
+            </span>
+          )}
         </div>
       </div>
 
@@ -148,10 +178,51 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
             {!task.prepInvoked && <IconBtn icon={Clock} onClick={() => requirePrep(task.id, PREP_DEFAULT_MS)} title="Require Prep Time" className="text-ash hover:text-gold" />}
             {!isSignal && <IconBtn icon={Radio} onClick={() => setSignal(task.id)} title="Light the Bat-Signal" className="text-ash hover:text-gold" />}
             <IconBtn icon={Pencil} onClick={() => onEdit(task)} title="Modify mission" className="text-ash hover:text-acid" />
-            {lowThreat && <IconBtn icon={Baby} onClick={() => delegate(task.id)} title="Adopt a Robin" className="text-ash hover:text-gold" />}
+            <IconBtn icon={Users} onClick={() => setDelegating((v) => !v)} title="Delegate to the Bat-Family" className={delegating ? 'text-gold' : 'text-ash hover:text-gold'} />
             <IconBtn icon={Trash2} onClick={() => remove(task.id)} title={task.prepInvoked ? 'Abandon — Joker Chaos ×10!' : 'Abandon'} className={task.prepInvoked ? 'text-blood/70 hover:text-blood' : 'text-ash hover:text-blood'} />
           </div>
         )}
+
+        {/* ═══ BAT-FAMILY DELEGATE MENU ═══ */}
+        <AnimatePresence>
+          {delegating && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setDelegating(false)} />
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                className="glass hud-corners absolute right-0 top-12 z-50 w-60 p-2"
+              >
+                <div className="mb-1.5 px-1 font-display text-[10px] tracking-[0.25em] text-gotham-slate">
+                  // ASSIGN TO NETWORK
+                </div>
+                {SIDEKICKS.map((s) => {
+                  const Icon = SK_ICONS[s.icon] || Bird
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => { assignTaskTo(task.id, s.id); setDelegating(false) }}
+                      className="flex w-full items-center gap-2.5 rounded px-2 py-2 text-left transition hover:bg-bone/5"
+                    >
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-full border-2"
+                        style={{ borderColor: s.color, color: s.color, background: `${s.color}1a` }}
+                      >
+                        <Icon className="h-[18px] w-[18px]" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-display text-[14px] font-semibold text-bone">{s.name}</span>
+                        <span className="block truncate font-mono text-[10px] text-ash">{s.handle}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ═══ THE DOPAMINE TAKEDOWN OVERLAY ═══ */}

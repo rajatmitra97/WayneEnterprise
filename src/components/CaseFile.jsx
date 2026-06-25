@@ -53,12 +53,12 @@ export default function CaseFile() {
   const toggleDay = (d) => setDays((ds) => (ds.includes(d) ? ds.filter((x) => x !== d) : [...ds, d].sort()))
 
   // Cowl boundary: each identity only sees its own sectors' open, on-patrol cases.
-  // (Backlog intel lives at Blackgate until deployed.)
+  // (Backlog intel lives at Blackgate; delegated cases live with the Bat-Family.)
   const open = useMemo(
-    () => sortByThreat(tasks.filter((t) => !t.done && t.status !== 'backlog' && visibleSectors.includes(t.sector))),
+    () => sortByThreat(tasks.filter((t) => !t.done && t.status !== 'backlog' && !t.assignedTo && visibleSectors.includes(t.sector))),
     [tasks, visibleSectors]
   )
-  const hiddenCount = tasks.filter((t) => !t.done && t.status !== 'backlog' && !visibleSectors.includes(t.sector)).length
+  const hiddenCount = tasks.filter((t) => !t.done && t.status !== 'backlog' && !t.assignedTo && !visibleSectors.includes(t.sector)).length
   const list = useMemo(() => {
     if (tab === 'open') return open
     if (tab === 'arkham') return open.filter((t) => t.threat === 'ARKHAM')
@@ -73,6 +73,7 @@ export default function CaseFile() {
       <Panel
         label="VI · Case File"
         title={<>The <em className="not-italic font-light text-bone-dim">Case File</em></>}
+        instruction="ACTIVE BACKLOG: EXECUTE OR SUFFER"
         right={`${open.length} OPEN · ${arkhamCount} ARKHAM${hiddenCount ? ` · ${hiddenCount} OFF-DUTY` : ''}`}
         className="col-span-12 lg:col-span-8"
       >

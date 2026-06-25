@@ -76,6 +76,7 @@ export default function BlackgateKanban() {
     <Panel
       label="XVI · Blackgate"
       title="Blackgate Facility"
+      instruction="PROCESSING: MOVE CASES TO INCARCERATED"
       right={`${cols.patrol.length} ON PATROL`}
       className="col-span-12"
       accent="#D62516"
