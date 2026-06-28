@@ -3,7 +3,7 @@
   "private": true,
   "version": "4.0.0",
   "description": "WAYNE OS // The Dark Knight Protocol — gamified discipline engine",
-   "homepage": "https://rajatmitra97.github.io/WayneEnterprise/",
+   "homepage": "https://rajatmitra97.github.io/BatOS/",
   "type": "module",
   "scripts": {
     "dev": "vite",
