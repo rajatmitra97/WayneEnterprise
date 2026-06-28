@@ -51,6 +51,9 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
   const setSignal = useStore((s) => s.setSignal)
   const requirePrep = useStore((s) => s.requirePrep)
   const assignTaskTo = useStore((s) => s.assignTaskTo)
+  const openContext = useStore((s) => s.openContext)
+  const beltActive = useStore((s) => s.beltActive)
+  const setBeltActive = useStore((s) => s.setBeltActive)
   const signal = useStore((s) => s.signal)
   const isScrambled = useStore((s) => s.riddlerScrambled.includes(task.id))
 
@@ -60,7 +63,10 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
   const isSignal = signal?.taskId === task.id
   const rl = recurLabel(task)
   const locked = !!task.locked
+  const lowThreat = meta.rank <= 1
   const mutation = task.mutation ? MUTATIONS[task.mutation] : null
+  // Utility Belt — Batarang armed: low-level cases become one-click slice targets
+  const sliceable = beltActive === 'batarang' && lowThreat && !task.done && !locked
 
   // Riddler cipher — scramble the title (stable until cipher lifts)
   const displayTitle = useMemo(
@@ -177,7 +183,7 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
             <IconBtn icon={Eye} onClick={() => onFocus(task)} title="Detective Vision" className="text-ash hover:text-hud" />
             {!task.prepInvoked && <IconBtn icon={Clock} onClick={() => requirePrep(task.id, PREP_DEFAULT_MS)} title="Require Prep Time" className="text-ash hover:text-gold" />}
             {!isSignal && <IconBtn icon={Radio} onClick={() => setSignal(task.id)} title="Light the Bat-Signal" className="text-ash hover:text-gold" />}
-            <IconBtn icon={Pencil} onClick={() => onEdit(task)} title="Modify mission" className="text-ash hover:text-acid" />
+            <IconBtn icon={Pencil} onClick={() => openContext(task.id)} title="Open dossier" className="text-ash hover:text-acid" />
             <IconBtn icon={Users} onClick={() => setDelegating((v) => !v)} title="Delegate to the Bat-Family" className={delegating ? 'text-gold' : 'text-ash hover:text-gold'} />
             <IconBtn icon={Trash2} onClick={() => remove(task.id)} title={task.prepInvoked ? 'Abandon — Joker Chaos ×10!' : 'Abandon'} className={task.prepInvoked ? 'text-blood/70 hover:text-blood' : 'text-ash hover:text-blood'} />
           </div>
@@ -224,6 +230,21 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ═══ UTILITY BELT · BATARANG SLICE TARGET ═══ */}
+      {sliceable && (
+        <motion.button
+          onClick={() => { takedown(); setBeltActive(null) }}
+          title="Slice (Batarang)"
+          className="absolute inset-0 z-30 flex items-center justify-center"
+          style={{ cursor: 'crosshair', background: 'rgba(214,37,22,0.06)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 1.4, repeat: Infinity }}
+        >
+          <span className="font-display text-[11px] tracking-[0.3em] text-hud">▸ SLICE ◂</span>
+        </motion.button>
+      )}
 
       {/* ═══ THE DOPAMINE TAKEDOWN OVERLAY ═══ */}
       <AnimatePresence>

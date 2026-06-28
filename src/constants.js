@@ -633,3 +633,46 @@ export const MUTATIONS = {
 export const MUTATION_IDS = ['freeze', 'riddler', 'scarecrow']
 export const SCARECROW_INTERVAL_MS = 2 * 60 * 1000 // jump-scare cadence
 export const SCRAMBLE_CHARS = '?@#$%&!§¿※†‡▓░▒'
+
+/* ═══════════════════════════════════════════════════════════════════
+   V7 // THE GOTHAM PARADIGM
+   ═══════════════════════════════════════════════════════════════════ */
+
+// ── Tactical navigation tabs (left Mainframe Uplink) ─────────────────
+export const TABS = [
+  { id: 'mission', label: 'Mission Control', sub: 'OPS', icon: 'Crosshair' },
+  { id: 'cave', label: 'The Cave', sub: 'ARMORY · UPGRADES', icon: 'Mountain' },
+  { id: 'batcomputer', label: 'Batcomputer', sub: 'ANALYTICS · EVIDENCE', icon: 'MonitorDot' },
+  { id: 'arkham', label: 'Arkham', sub: 'ROGUE BOSSES', icon: 'Skull' },
+]
+
+// ── Daily Alfred Briefing ────────────────────────────────────────────
+export const DAILY_LOGIN_BONUS = 50 // Wayne Coins for showing up
+export const ALFRED_BRIEF_OPEN = [
+  'Good evening, sir. The cave kept your seat warm.',
+  'Welcome back, Master Wayne. Gotham noticed your absence — it always does.',
+]
+
+// ── Weekly Rogue Boss Fight ──────────────────────────────────────────
+// Damage per completed task, by threat rank (0–3).
+export const BOSS_DAMAGE = [10, 20, 35, 50] // LOW, MEDIUM, HIGH, ARKHAM
+export const BOSSES = [
+  { id: 'bane', name: 'Bane', maxHp: 1000, color: '#b8341c', tag: 'THE BREAKER OF BATS' },
+  { id: 'joker', name: 'The Joker', maxHp: 1200, color: '#39ff14', tag: 'AGENT OF CHAOS' },
+  { id: 'ras', name: "Ra's al Ghul", maxHp: 1400, color: '#8a2be2', tag: 'THE DEMON\'S HEAD' },
+  { id: 'freeze', name: 'Mr. Freeze', maxHp: 900, color: '#7ad7ff', tag: 'COLD-BLOODED' },
+  { id: 'scarecrow', name: 'Scarecrow', maxHp: 1100, color: '#c9a73a', tag: 'MASTER OF FEAR' },
+]
+export const BOSS_BUFF_STEP = 0.1 // +10% permanent XP per boss defeated
+
+// ── The Utility Belt — gadget id → isometric PNG asset ───────────────
+export const GADGET_ASSETS = {
+  grapnel: 'assets/gadgets/grapnel.png',
+  batarang: 'assets/gadgets/batarang.png',
+  smoke: 'assets/gadgets/smoke-pellet.png',
+  gel: 'assets/gadgets/explosive-gel.png',
+  optics: 'assets/gadgets/optics.png',
+  emp: 'assets/gadgets/emp.png',
+  cape: 'assets/gadgets/cape.png',
+  tumbler: 'assets/gadgets/tumbler.png',
+}

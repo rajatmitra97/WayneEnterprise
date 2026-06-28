@@ -33,6 +33,19 @@ Intro sequence
   top), so center the cowl horizontally with the eyes a little above middle.
 - If absent, IntroSequence renders a vector cowl fallback automatically.
 
+V7 character & gadget art (all optional — vector fallbacks render until added)
+------------------------------------------------------------------------------
+  public/assets/alfred-avatar.png        Daily Briefing portrait (square, ~128px)
+  public/assets/boss-silhouette.png      Weekly Rogue boss (gritty silhouette, transparent)
+  public/assets/gadgets/grapnel.png      Utility Belt — isometric 3D renders,
+  public/assets/gadgets/batarang.png       transparent background, ~128px square each
+  public/assets/gadgets/smoke-pellet.png
+  public/assets/gadgets/explosive-gel.png
+  public/assets/gadgets/optics.png
+  public/assets/gadgets/emp.png
+  public/assets/gadgets/cape.png
+  public/assets/gadgets/tumbler.png
+
 Notes
 -----
 - Empire is a JPG (full-frame background). Machine and Body are PNGs so their

@@ -44,7 +44,26 @@ import {
   MUTATION_AGE_MS,
   MUTATION_IDS,
   MUTATIONS,
+  BOSSES,
+  BOSS_DAMAGE,
+  BOSS_BUFF_STEP,
+  DAILY_LOGIN_BONUS,
 } from './constants'
+
+// ISO-ish week key so the boss rotates every Monday.
+function weekKey(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const day = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  const wk = Math.ceil(((d - yearStart) / 86400000 + 1) / 7)
+  return `${d.getUTCFullYear()}-W${String(wk).padStart(2, '0')}`
+}
+const freshBoss = (prevId) => {
+  const pool = BOSSES.filter((b) => b.id !== prevId)
+  const b = pool[Math.floor(Math.random() * pool.length)] || BOSSES[0]
+  return { id: b.id, name: b.name, color: b.color, tag: b.tag, maxHp: b.maxHp, hp: b.maxHp, weekKey: weekKey(), defeated: false }
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    OMNIBAR PARSER — turns raw intel into a structured directive.
@@ -181,6 +200,15 @@ export const useStore = create(
       // ── Arkham Mutation Protocol ──
       riddlerScrambled: [], // task ids whose titles are ciphered by a Riddler mutation
 
+      // ── V7 Gotham Paradigm ──
+      activeTab: 'mission', // left-rail navigation
+      contextTaskId: null, // right contextual panel target
+      lastLoginDate: null, // Daily Alfred Briefing gate
+      boss: null, // weekly Rogue boss-fight {id,name,hp,maxHp,weekKey,defeated}
+      bossBuffs: 0, // permanent XP multiplier steps earned from defeats
+      bossScars: [], // [{id,name,week}] bosses that escaped
+      beltActive: null, // active Utility Belt gadget (e.g. 'batarang') for click-actions
+
       // ── FOUNDATION (full UI lands in the next stage) ──
       contingencies: [], // {id, label, when, then, enabled, armed}
       rnd: [], // Lucius Fox prototypes {id, title, stage, invested}
@@ -300,7 +328,9 @@ export const useStore = create(
         const isSignal = st.signal?.taskId === id
         const mult = isSignal ? 3 : 1
 
-        let gainedXp = meta.xp * mult
+        // permanent boss-defeat buff folds into every XP award
+        const xpMult = 1 + st.bossBuffs * BOSS_BUFF_STEP
+        let gainedXp = Math.round(meta.xp * mult * xpMult)
         let gainedCoins = meta.coins * mult
         let chaos = false
 
@@ -347,6 +377,7 @@ export const useStore = create(
         })
 
         get().bumpStreak()
+        get().dealBossDamage(meta.rank) // every closed case wounds the weekly Rogue
         unlocked.forEach((u) => get().pushToast('UPGRADE ACQUIRED', u, 'gold'))
         if (chaos) get().pushToast('ALFRED', pick(ALFRED.chaos), 'chaos')
         else get().pushToast('ALFRED', pick(ALFRED.done), 'gold')
@@ -547,6 +578,51 @@ export const useStore = create(
           )
         })
       },
+
+      /* ════════════ V7 · NAVIGATION & CONTEXT PANEL ═════════════ */
+      setTab: (tab) => set({ activeTab: tab }),
+      openContext: (taskId) => set({ contextTaskId: taskId }),
+      closeContext: () => set({ contextTaskId: null }),
+
+      /* ════════════ V7 · DAILY ALFRED BRIEFING ══════════════════ */
+      needsBriefing: () => get().lastLoginDate !== todayKey(),
+      claimDailyBonus: () => {
+        if (get().lastLoginDate === todayKey()) return
+        set((st) => ({ coins: st.coins + DAILY_LOGIN_BONUS, lastLoginDate: todayKey() }))
+        get().pushToast('ALFRED', `Daily commendation logged. +${DAILY_LOGIN_BONUS} WC, sir.`, 'gold')
+      },
+
+      /* ════════════ V7 · WEEKLY ROGUE BOSS FIGHT ════════════════ */
+      // Ensure a live boss for the current week; rotate + scar on a new week.
+      ensureBoss: () => {
+        const st = get()
+        const wk = weekKey()
+        if (!st.boss) return set({ boss: freshBoss(null) })
+        if (st.boss.weekKey !== wk) {
+          const scars = st.boss.defeated
+            ? st.bossScars
+            : [...st.bossScars, { id: st.boss.id, name: st.boss.name, week: st.boss.weekKey }]
+          if (!st.boss.defeated)
+            get().pushToast(st.boss.name.toUpperCase(), 'The week ended. I escaped — and I left a scar on your Gotham.', 'blood')
+          set({ boss: freshBoss(st.boss.id), bossScars: scars })
+        }
+      },
+      // Completed tasks chip the boss's health.
+      dealBossDamage: (rank) => {
+        const st = get()
+        if (!st.boss || st.boss.defeated) return
+        const dmg = BOSS_DAMAGE[rank] || 10
+        const hp = Math.max(0, st.boss.hp - dmg)
+        if (hp <= 0) {
+          set({ boss: { ...st.boss, hp: 0, defeated: true }, bossBuffs: st.bossBuffs + 1 })
+          get().pushToast(st.boss.name.toUpperCase(), `Defeated before the week was out. Permanent +${Math.round(BOSS_BUFF_STEP * 100)}% XP secured.`, 'gold')
+        } else {
+          set({ boss: { ...st.boss, hp } })
+        }
+      },
+
+      /* ════════════ V7 · UTILITY BELT ═══════════════════════════ */
+      setBeltActive: (gadgetId) => set((st) => ({ beltActive: st.beltActive === gadgetId ? null : gadgetId })),
 
       /* ════════════ BAT-FAMILY NETWORK (delegation) ══════════════ */
       // Hand a case to a sidekick; it leaves your active board for their queue.
@@ -818,6 +894,13 @@ export const useStore = create(
           schedule: {},
           notifiedSlots: {},
           riddlerScrambled: [],
+          activeTab: 'mission',
+          contextTaskId: null,
+          lastLoginDate: null,
+          boss: null,
+          bossBuffs: 0,
+          bossScars: [],
+          beltActive: null,
           rogueStats: { riddler: 0, freeze: 0, ivy: 0, bane: 0 },
           contingencies: [],
           rnd: [],
@@ -830,10 +913,13 @@ export const useStore = create(
     {
       name: STORAGE_KEY,
       partialize: (st) => {
-        // never persist transient UI noise (toasts, open-console flag)
-        const { toasts, commandOpen, ...rest } = st
+        // never persist transient UI noise (toasts, open-console flag, belt mode,
+        // the contextual-panel target)
+        const { toasts, commandOpen, beltActive, contextTaskId, ...rest } = st
         void toasts
         void commandOpen
+        void beltActive
+        void contextTaskId
         return rest
       },
     }

@@ -25,6 +25,11 @@ import BlackgateKanban from './components/BlackgateKanban'
 import LongHalloweenHeatmap from './components/LongHalloweenHeatmap'
 import DispatchGrid from './components/DispatchGrid'
 import SidekickRoster from './components/SidekickRoster'
+import Sidebar from './components/Sidebar'
+import ContextPanel from './components/ContextPanel'
+import DailyBriefing from './components/DailyBriefing'
+import RogueBossFight from './components/RogueBossFight'
+import UtilityBelt from './components/UtilityBelt'
 
 const pick = (a) => a[Math.floor(Math.random() * a.length)]
 
@@ -32,6 +37,9 @@ export default function App() {
   const rolloverCheck = useStore((s) => s.rolloverCheck)
   const checkChrono = useStore((s) => s.checkChrono)
   const mutateOverdueTasks = useStore((s) => s.mutateOverdueTasks)
+  const ensureBoss = useStore((s) => s.ensureBoss)
+  const activeTab = useStore((s) => s.activeTab)
+  const beltActive = useStore((s) => s.beltActive)
   const pushToast = useStore((s) => s.pushToast)
   const lastFearToxin = useStore((s) => s.lastFearToxin)
   const tasks = useStore((s) => s.tasks)
@@ -107,6 +115,13 @@ export default function App() {
     return () => clearInterval(t)
   }, [checkChrono])
 
+  // Weekly Rogue boss — ensure one is live for the current week.
+  useEffect(() => {
+    ensureBoss()
+    const t = setInterval(ensureBoss, 60_000)
+    return () => clearInterval(t)
+  }, [ensureBoss])
+
   // Fear-toxin screen flash whenever a penalty fires.
   useEffect(() => {
     if (lastFearToxin && lastFearToxin !== fearRef.current) {
@@ -177,6 +192,8 @@ export default function App() {
         <DetectiveVision />
         <BroodingOverlay active={brooding} onExit={() => setBrooding(false)} />
         <LazarusPit />
+        <DailyBriefing />
+        <UtilityBelt />
 
         {/* The OS materialises from inside his mind as the dive completes. */}
         <motion.div
@@ -187,38 +204,62 @@ export default function App() {
               : { opacity: 0, scale: 1.12, filter: 'blur(14px)' }
           }
           transition={{ duration: 1.3, ease: [0.16, 1, 0.3, 1] }}
+          className={beltActive === 'batarang' ? 'cursor-crosshair' : ''}
         >
-          <TopBar />
+          {/* ═══ DIRECTIVE 1 — Sidebar · Main view · Right contextual panel ═══ */}
+          <div className="flex">
+            <Sidebar />
 
-          {/* ═══ DIRECTIVE 4 — strict vertical hierarchy ═══ */}
-          <main className="mx-auto grid max-w-[1480px] grid-cols-12 gap-4 px-4 pb-24 pt-6 md:px-9">
-            {/* 1 · TOP — the unified Protagonist / Bat Image panel */}
-            <BatPanel />
-            {/* 2 · UPPER-MIDDLE — the Add Task / Command Console */}
-            <CommandBar />
-            {/* 3 · LOWER-MIDDLE — the Weekly Routine / Dispatch Grid */}
-            <DispatchGrid />
-            {/* 4 · BOTTOM GRID — backlog, network, analytics, armory, telemetry */}
-            <CaseFile />
-            <SidekickRoster />
-            <Sectors />
-            <BatSignal />
-            <RasPanel />
-            <Analytics />
-            <BlackgateKanban />
-            <LongHalloweenHeatmap />
-            <Armory />
-            <BackupPanel />
-            <Metrics />
-          </main>
+            <div className="min-w-0 flex-1">
+              <TopBar />
+              <main className="mx-auto grid max-w-[1280px] grid-cols-12 gap-4 px-4 pb-28 pt-6 md:px-8">
+                {activeTab === 'mission' && (
+                  <>
+                    <BatPanel />
+                    <CommandBar />
+                    <DispatchGrid />
+                    <CaseFile />
+                    <SidekickRoster />
+                    <BatSignal />
+                  </>
+                )}
 
-          <footer className="flex items-center justify-between border-t border-rule px-6 py-4 font-display text-[10px] uppercase tracking-[0.3em] text-ash-dim md:px-9">
-            <span>WAYNE OS · THE DARK KNIGHT PROTOCOL · V6</span>
-            <em className="font-serif text-[11px] normal-case italic tracking-normal text-ash">
-              “It's not who you are underneath, but what you do, that defines you.”
-            </em>
-            <span>MMXXVI</span>
-          </footer>
+                {activeTab === 'cave' && (
+                  <>
+                    <Sectors />
+                    <Armory />
+                    <BackupPanel />
+                    <Metrics />
+                  </>
+                )}
+
+                {activeTab === 'batcomputer' && (
+                  <>
+                    <Analytics />
+                    <BlackgateKanban />
+                    <LongHalloweenHeatmap />
+                  </>
+                )}
+
+                {activeTab === 'arkham' && (
+                  <>
+                    <RogueBossFight />
+                    <RasPanel />
+                  </>
+                )}
+              </main>
+
+              <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-rule px-6 py-4 font-display text-[10px] uppercase tracking-[0.3em] text-ash-dim md:px-8">
+                <span>WAYNE OS · DARK KNIGHT PROTOCOL · V7</span>
+                <em className="font-serif text-[11px] normal-case italic tracking-normal text-ash">
+                  “It's not who you are underneath, but what you do, that defines you.”
+                </em>
+                <span>MMXXVI</span>
+              </footer>
+            </div>
+
+            <ContextPanel />
+          </div>
         </motion.div>
       </div>
     </MotionConfig>
