@@ -48,6 +48,10 @@ import {
   BOSS_DAMAGE,
   BOSS_BUFF_STEP,
   DAILY_LOGIN_BONUS,
+  LAZARUS_REVIVE_COST,
+  RESEARCH_PROJECTS,
+  RESEARCH_HOURS,
+  INTERROGATION_PENALTY_RELIEF,
 } from './constants'
 
 // ISO-ish week key so the boss rotates every Monday.
@@ -208,6 +212,17 @@ export const useStore = create(
       bossBuffs: 0, // permanent XP multiplier steps earned from defeats
       bossScars: [], // [{id,name,week}] bosses that escaped
       beltActive: null, // active Utility Belt gadget (e.g. 'batarang') for click-actions
+
+      // ── V8 Detective Board Update ──
+      boardCores: [], // {id,title,sector,x,y,done,taskId}
+      boardSubs: [], // {id,title,coreId,done,x,y}
+      journal: [], // {id,text,at,kind}
+      graveyard: [], // failed core/routine cases awaiting the Lazarus Pit
+      focusStrict: true, // focus mode: true=Arkham(strict) | false=Oracle(background)
+      research: [], // active R&D {projectId, startedAt}
+      unlockedResearch: [], // claimed project ids
+      muted: false, // global ambient mute
+      lastInterrogation: null, // date of last Arkham Interrogation
 
       // ── FOUNDATION (full UI lands in the next stage) ──
       contingencies: [], // {id, label, when, then, enabled, armed}
@@ -384,6 +399,9 @@ export const useStore = create(
 
         // Defeating a Riddler-mutated case breaks the cipher on the backlog.
         if (t.mutation === 'riddler') set({ riddlerScrambled: [] })
+
+        // A scheduled Core Task closing marks its Detective Board node solved.
+        if (t.coreId) set((s2) => ({ boardCores: s2.boardCores.map((c) => (c.id === t.coreId ? { ...c, done: true } : c)) }))
 
         // A completed patrol route re-arms at the next midnight rollover,
         // so nothing to respawn here — see rolloverCheck().
@@ -624,6 +642,126 @@ export const useStore = create(
       /* ════════════ V7 · UTILITY BELT ═══════════════════════════ */
       setBeltActive: (gadgetId) => set((st) => ({ beltActive: st.beltActive === gadgetId ? null : gadgetId })),
 
+      /* ════════════ V8 · BINARY ROUTINE FAIL + LAZARUS ══════════ */
+      // Red 'X' on a routine task → Joker Chaos + the case rots in the Graveyard.
+      failRoutineTask: (id) => {
+        const st = get()
+        const t = st.tasks.find((x) => x.id === id)
+        if (!t) return
+        const { sector } = applyXp(st.sectors, t.sector, -JOKER_CHAOS_XP)
+        set({
+          sectors: sector,
+          coins: Math.max(0, st.coins - JOKER_CHAOS_COINS),
+          failedCount: st.failedCount + 1,
+          streak: 0,
+          lastFearToxin: Date.now(),
+          tasks: st.tasks.filter((x) => x.id !== id),
+          graveyard: [{ id: uid(), srcId: t.id, title: t.title, sector: t.sector, threat: t.threat, streakAtFail: st.streak, failedAt: Date.now() }, ...st.graveyard].slice(0, 60),
+          closedTasks: [{ ...t, id: uid(), srcId: t.id, failed: true, rogue: null, closedDate: todayKey(), closedAt: Date.now() }, ...st.closedTasks].slice(0, 400),
+          signal: st.signal?.taskId === id ? null : st.signal,
+        })
+        // unschedule it from the dispatch grid
+        const sched = { ...get().schedule }
+        Object.keys(sched).forEach((k) => { if (sched[k] === id) delete sched[k] })
+        set({ schedule: sched })
+        get().pushToast('THE JOKER', 'A failure! HAHAHA. The case rots in the Graveyard now, Bats.', 'chaos')
+      },
+      // The Lazarus Pit — spend coins to revive a graveyard case, scarred green.
+      reviveFromGraveyard: (graveId) => {
+        const st = get()
+        const g = st.graveyard.find((x) => x.id === graveId)
+        if (!g) return false
+        if (st.coins < LAZARUS_REVIVE_COST) {
+          get().pushToast('RA\'S AL GHUL', `The Pit demands ${LAZARUS_REVIVE_COST} Wayne Coins, detective.`, 'blood')
+          return false
+        }
+        set({
+          coins: st.coins - LAZARUS_REVIVE_COST,
+          graveyard: st.graveyard.filter((x) => x.id !== graveId),
+          failedCount: Math.max(0, st.failedCount - 1),
+          streak: Math.max(st.streak, g.streakAtFail || 0),
+        })
+        get().addTask({ title: g.title, sector: g.sector, threat: g.threat })
+        // tag the freshly-created task with a permanent Lazarus scar
+        set((s2) => ({ tasks: s2.tasks.map((t, i) => (i === 0 ? { ...t, lazarusScar: true } : t)) }))
+        get().pushToast('THE LAZARUS PIT', 'Reborn — and forever scarred green. Do not waste this second life.', 'chaos')
+        return true
+      },
+
+      /* ════════════ V8 · DETECTIVE BOARD ════════════════════════ */
+      addCore: (title, sector) =>
+        set((st) => ({
+          boardCores: [...st.boardCores, { id: uid(), title: title.trim(), sector, x: 30 + Math.random() * 30, y: 38 + Math.random() * 16, done: false, taskId: null }],
+        })),
+      addSub: (title, coreId) =>
+        set((st) => ({
+          boardSubs: [...st.boardSubs, { id: uid(), title: title.trim(), coreId, done: false, x: 30 + Math.random() * 40, y: 55 + Math.random() * 30 }],
+        })),
+      toggleSub: (id) =>
+        set((st) => ({ boardSubs: st.boardSubs.map((s) => (s.id === id ? { ...s, done: !s.done } : s)) })),
+      moveNode: (kind, id, x, y) =>
+        set((st) =>
+          kind === 'core'
+            ? { boardCores: st.boardCores.map((n) => (n.id === id ? { ...n, x, y } : n)) }
+            : { boardSubs: st.boardSubs.map((n) => (n.id === id ? { ...n, x, y } : n)) }
+        ),
+      removeCore: (id) =>
+        set((st) => ({ boardCores: st.boardCores.filter((n) => n.id !== id), boardSubs: st.boardSubs.filter((s) => s.coreId !== id) })),
+      removeSub: (id) => set((st) => ({ boardSubs: st.boardSubs.filter((n) => n.id !== id) })),
+      // Core tasks can ONLY be completed via the Dispatch Grid: deploy one as a real task.
+      scheduleCore: (coreId) => {
+        const st = get()
+        const core = st.boardCores.find((c) => c.id === coreId)
+        if (!core || core.taskId) return
+        const taskId = get().addTask({ title: core.title, sector: core.sector, threat: 'HIGH' })
+        set((s2) => ({ tasks: s2.tasks.map((t) => (t.id === taskId ? { ...t, coreId } : t)), boardCores: s2.boardCores.map((c) => (c.id === coreId ? { ...c, taskId } : c)) }))
+        get().pushToast('ALFRED', 'Core objective deployed to the Dispatch Grid, sir. Schedule it.', 'gold')
+      },
+
+      /* ════════════ V8 · WAYNE JOURNAL ══════════════════════════ */
+      addJournal: (text, kind = 'thought') => {
+        const v = (text || '').trim()
+        if (!v) return
+        set((st) => ({ journal: [{ id: uid(), text: v, at: Date.now(), kind }, ...st.journal].slice(0, 300) }))
+      },
+
+      /* ════════════ V8 · FOCUS MODE TOGGLE ══════════════════════ */
+      setFocusStrict: (strict) => set({ focusStrict: strict }),
+
+      /* ════════════ V8 · LUCIUS FOX R&D ═════════════════════════ */
+      startResearch: (projectId) => {
+        const st = get()
+        const proj = RESEARCH_PROJECTS.find((p) => p.id === projectId)
+        if (!proj || st.research.some((r) => r.projectId === projectId) || st.unlockedResearch.includes(projectId)) return
+        if (st.coins < proj.cost) { get().pushToast('LUCIUS FOX', `Applied Sciences needs ${proj.cost} WC for that, sir.`, 'blood'); return }
+        set({ coins: st.coins - proj.cost, research: [...st.research, { projectId, startedAt: Date.now() }] })
+        get().pushToast('LUCIUS FOX', `${proj.name} is in development. Check back in ${RESEARCH_HOURS} hours.`, 'gold')
+      },
+      claimResearch: (projectId) => {
+        const st = get()
+        const r = st.research.find((x) => x.projectId === projectId)
+        if (!r) return
+        if (Date.now() - r.startedAt < RESEARCH_HOURS * 3600000) return
+        const proj = RESEARCH_PROJECTS.find((p) => p.id === projectId)
+        set({ research: st.research.filter((x) => x.projectId !== projectId), unlockedResearch: [...st.unlockedResearch, projectId] })
+        if (proj?.kind === 'BUFF') set({ bossBuffs: get().bossBuffs + 0.5 }) // +5% folds into xpMult
+        get().pushToast('LUCIUS FOX', `Research complete: ${proj?.name}. Deployed.`, 'gold')
+      },
+
+      /* ════════════ V8 · AUDIO MUTE ═════════════════════════════ */
+      toggleMute: () => set((st) => ({ muted: !st.muted })),
+
+      /* ════════════ V8 · ARKHAM INTERROGATION ═══════════════════ */
+      submitInterrogation: (text, failCount) => {
+        get().addJournal(text, 'interrogation')
+        // writing the debrief refunds half the Joker Chaos the fails cost today
+        const relief = Math.round(failCount * JOKER_CHAOS_COINS * INTERROGATION_PENALTY_RELIEF)
+        set((st) => ({ coins: st.coins + relief, lastInterrogation: todayKey() }))
+        if (relief > 0) get().pushToast('ALFRED', `Reflection logged. ${relief} WC of composure restored, sir.`, 'gold')
+        else get().pushToast('ALFRED', 'Reflection logged. A clearer mind tomorrow, sir.', 'gold')
+      },
+      dismissInterrogation: () => set({ lastInterrogation: todayKey() }),
+
       /* ════════════ BAT-FAMILY NETWORK (delegation) ══════════════ */
       // Hand a case to a sidekick; it leaves your active board for their queue.
       assignTaskTo: (id, sidekickId) => {
@@ -728,7 +866,8 @@ export const useStore = create(
 
       /* ════════════ DETECTIVE VISION (focus session) ══════════════ */
       startFocus: (taskId, duration = FOCUS_DEFAULT_MS) => {
-        set({ focus: { active: true, taskId, duration, endsAt: Date.now() + duration, startedAt: Date.now() } })
+        // capture the active focus discipline (Arkham strict vs Oracle background)
+        set({ focus: { active: true, taskId, duration, endsAt: Date.now() + duration, startedAt: Date.now(), strict: get().focusStrict } })
       },
       // Full session survived → bounty + complete the underlying task.
       completeFocus: () => {
@@ -901,6 +1040,15 @@ export const useStore = create(
           bossBuffs: 0,
           bossScars: [],
           beltActive: null,
+          boardCores: [],
+          boardSubs: [],
+          journal: [],
+          graveyard: [],
+          focusStrict: true,
+          research: [],
+          unlockedResearch: [],
+          muted: false,
+          lastInterrogation: null,
           rogueStats: { riddler: 0, freeze: 0, ivy: 0, bane: 0 },
           contingencies: [],
           rnd: [],

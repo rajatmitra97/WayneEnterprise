@@ -50,9 +50,10 @@ export default function DetectiveVision() {
     return () => clearInterval(t)
   }, [active, focus, completeFocus])
 
-  // Page Visibility — leaving the tab breaks focus.
+  // Page Visibility — leaving the tab breaks focus ONLY under Arkham (strict)
+  // rules. Oracle (background) mode lets the timer run while you work elsewhere.
   useEffect(() => {
-    if (!active) return
+    if (!active || !focus?.strict) return
     const onHide = () => {
       if (document.hidden && !endedRef.current) {
         endedRef.current = true
@@ -61,7 +62,7 @@ export default function DetectiveVision() {
     }
     document.addEventListener('visibilitychange', onHide)
     return () => document.removeEventListener('visibilitychange', onHide)
-  }, [active, breakFocus])
+  }, [active, focus, breakFocus])
 
   const abort = () => {
     if (endedRef.current) return

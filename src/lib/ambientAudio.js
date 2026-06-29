@@ -117,6 +117,134 @@ export function playCellDoor() {
   setTimeout(() => { try { ac.close() } catch (e) { /* closed */ } }, 800)
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   IDENTITY SOUNDSCAPES (Directive 9) — a persistent ambient bed tied to
+   the active identity. Wayne: light rain + warm pad. Bat: heavy rain,
+   distant thunder, cave drips, low sonar drone. Procedural, no files.
+   Must be started from a user gesture (browsers block autoplay).
+   ═══════════════════════════════════════════════════════════════════ */
+let sctx = null
+let sceneNodes = null
+let sceneId = null
+let dripTimer = null
+let thunderTimer = null
+
+function noiseBuffer(ac, seconds = 2) {
+  const len = ac.sampleRate * seconds
+  const buf = ac.createBuffer(1, len, ac.sampleRate)
+  const d = buf.getChannelData(0)
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
+  return buf
+}
+
+export function startSoundscape(mode) {
+  // already on this scene → just (re)resume; lets the first user gesture
+  // un-suspend a context the browser blocked on autoplay.
+  if (sctx && sceneId === mode && sceneNodes) {
+    try { sctx.resume() } catch (e) { /* ignore */ }
+    return
+  }
+  stopSoundscape()
+  try {
+    sctx = new (window.AudioContext || window.webkitAudioContext)()
+  } catch (e) {
+    return
+  }
+  if (sctx.state === 'suspended') sctx.resume()
+  const isBat = mode !== 'wayne'
+
+  const master = sctx.createGain()
+  master.gain.value = 0
+  master.connect(sctx.destination)
+  master.gain.linearRampToValueAtTime(isBat ? 0.42 : 0.3, sctx.currentTime + 3)
+
+  // ── rain (heavier + lower for the cave) ──
+  const rain = sctx.createBufferSource()
+  rain.buffer = noiseBuffer(sctx)
+  rain.loop = true
+  const rainBand = sctx.createBiquadFilter()
+  rainBand.type = 'bandpass'
+  rainBand.frequency.value = isBat ? 900 : 1700
+  rainBand.Q.value = 0.4
+  const rainGain = sctx.createGain()
+  rainGain.gain.value = isBat ? 0.3 : 0.14
+  rain.connect(rainBand).connect(rainGain).connect(master)
+  rain.start()
+
+  // ── warm pad (Wayne) or sonar drone (Bat) ──
+  const oscA = sctx.createOscillator()
+  const oscB = sctx.createOscillator()
+  const padFilter = sctx.createBiquadFilter()
+  padFilter.type = 'lowpass'
+  padFilter.frequency.value = isBat ? 200 : 600
+  const padGain = sctx.createGain()
+  padGain.gain.value = isBat ? 0.18 : 0.1
+  if (isBat) {
+    oscA.type = 'sine'; oscA.frequency.value = 52
+    oscB.type = 'sine'; oscB.frequency.value = 55.5 // low sonar beat
+  } else {
+    oscA.type = 'triangle'; oscA.frequency.value = 220 // warm A3
+    oscB.type = 'sine'; oscB.frequency.value = 277.18 // C#4 — major-third warmth
+  }
+  oscA.connect(padFilter); oscB.connect(padFilter)
+  padFilter.connect(padGain).connect(master)
+  oscA.start(); oscB.start()
+
+  sceneNodes = { master, rain, oscA, oscB }
+  sceneId = mode
+
+  // ── Bat-only: cave drips + distant thunder ──
+  if (isBat) {
+    const drip = () => {
+      if (!sctx || sceneId !== mode) return
+      const o = sctx.createOscillator()
+      const g = sctx.createGain()
+      o.type = 'sine'
+      o.frequency.setValueAtTime(1400 + Math.random() * 600, sctx.currentTime)
+      o.frequency.exponentialRampToValueAtTime(500, sctx.currentTime + 0.12)
+      g.gain.setValueAtTime(0.0001, sctx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.12, sctx.currentTime + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.0001, sctx.currentTime + 0.25)
+      o.connect(g).connect(master)
+      o.start(); o.stop(sctx.currentTime + 0.3)
+      dripTimer = setTimeout(drip, 2500 + Math.random() * 5000)
+    }
+    dripTimer = setTimeout(drip, 1800)
+
+    const thunder = () => {
+      if (!sctx || sceneId !== mode) return
+      const n = sctx.createBufferSource()
+      n.buffer = noiseBuffer(sctx, 1.5)
+      const lp = sctx.createBiquadFilter()
+      lp.type = 'lowpass'; lp.frequency.value = 220
+      const g = sctx.createGain()
+      g.gain.setValueAtTime(0.0001, sctx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.35, sctx.currentTime + 0.4)
+      g.gain.exponentialRampToValueAtTime(0.0001, sctx.currentTime + 1.6)
+      n.connect(lp).connect(g).connect(master)
+      n.start(); n.stop(sctx.currentTime + 1.7)
+      thunderTimer = setTimeout(thunder, 18000 + Math.random() * 25000)
+    }
+    thunderTimer = setTimeout(thunder, 9000)
+  }
+}
+
+export function stopSoundscape() {
+  if (dripTimer) { clearTimeout(dripTimer); dripTimer = null }
+  if (thunderTimer) { clearTimeout(thunderTimer); thunderTimer = null }
+  if (!sctx || !sceneNodes) { sceneId = null; return }
+  const old = sceneNodes
+  const oldCtx = sctx
+  sceneNodes = null; sceneId = null; sctx = null
+  try {
+    old.master.gain.cancelScheduledValues(oldCtx.currentTime)
+    old.master.gain.linearRampToValueAtTime(0, oldCtx.currentTime + 0.8)
+  } catch (e) { /* ignore */ }
+  setTimeout(() => {
+    try { old.rain.stop(); old.oscA.stop(); old.oscB.stop(); oldCtx.close() } catch (e) { /* torn down */ }
+  }, 900)
+}
+
 export function stopAmbience() {
   if (!ctx || !nodes) return
   const { master } = nodes

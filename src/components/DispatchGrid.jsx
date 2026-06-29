@@ -6,7 +6,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, Plus, CalendarClock } from 'lucide-react'
+import { X, Plus, CalendarClock, Check } from 'lucide-react'
 import { useStore } from '../store'
 import {
   SECTORS, THREAT, DISPATCH_DAYS, DISPATCH_START_HOUR, DISPATCH_END_HOUR,
@@ -19,9 +19,18 @@ export default function DispatchGrid() {
   const schedule = useStore((s) => s.schedule)
   const assignSlot = useStore((s) => s.assignSlot)
   const clearSlot = useStore((s) => s.clearSlot)
+  const complete = useStore((s) => s.completeTask)
+  const failRoutine = useStore((s) => s.failRoutineTask)
 
   const [gran, setGran] = useState(60) // minutes per block
   const [picking, setPicking] = useState(null) // { wd, mins } awaiting a task
+  const [failingId, setFailingId] = useState(null) // jagged-strike animation target
+
+  // play the jagged red strike, THEN send the case to the Graveyard
+  const doFail = (id) => {
+    setFailingId(id)
+    setTimeout(() => { failRoutine(id); setFailingId(null) }, 460)
+  }
   const [, tick] = useState(0) // keep the live-slot highlight current
   useEffect(() => {
     const t = setInterval(() => tick((n) => n + 1), 30_000)
@@ -124,28 +133,44 @@ export default function DispatchGrid() {
 
                       <AnimatePresence mode="popLayout">
                         {task ? (
-                          <motion.button
+                          <motion.div
                             key={task.id}
                             layout
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.85 }}
-                            onClick={() => clearSlot(d.wd, mins)}
-                            title="Unassign"
-                            className={`group relative flex h-full w-full flex-col justify-center gap-0.5 rounded px-2 py-1 text-left ${
+                            className={`group relative flex h-full w-full items-center gap-1 rounded px-1.5 py-1 ${
                               overdueLive ? 'animate-arkham-pulse' : ''
-                            }`}
+                            } ${task.lazarusScar ? 'ring-1 ring-[#39ff14]' : ''}`}
                             style={{
-                              background: `${meta.color}26`,
-                              borderLeft: `3px solid ${meta.color}`,
+                              background: `${meta.color}22`,
+                              borderLeft: `3px solid ${task.lazarusScar ? '#39ff14' : meta.color}`,
+                              boxShadow: task.lazarusScar ? '0 0 12px -4px #39ff14' : undefined,
                             }}
                           >
-                            <span className="truncate font-mono text-[12px] leading-tight text-bone">{task.title}</span>
-                            <span className="font-display text-[9px] tracking-[0.16em]" style={{ color: meta.color }}>
-                              {SECTORS[task.sector]?.name?.toUpperCase() || 'CASE'}
-                            </span>
-                            <X size={12} className="absolute right-1 top-1 text-ash opacity-0 transition group-hover:opacity-100" />
-                          </motion.button>
+                            <div className="relative min-w-0 flex-1">
+                              <span className={`block truncate font-mono text-[12px] leading-tight ${failingId === task.id ? 'text-blood' : 'text-bone'}`}>{task.title}</span>
+                              <span className="font-display text-[9px] tracking-[0.16em]" style={{ color: meta.color }}>
+                                {SECTORS[task.sector]?.name?.toUpperCase() || 'CASE'}
+                              </span>
+                              {/* jagged red FAIL strike */}
+                              {failingId === task.id && (
+                                <motion.svg viewBox="0 0 100 12" preserveAspectRatio="none" className="pointer-events-none absolute left-0 top-1/2 h-3 w-full -translate-y-1/2 overflow-visible" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+                                  <motion.polyline points="0,6 10,1 20,11 30,2 40,10 50,3 60,9 70,2 80,10 90,4 100,7" fill="none" stroke="#D62516" strokeWidth="2.5" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px #ff3422)' }} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.4 }} preserveAspectRatio="none" />
+                                </motion.svg>
+                              )}
+                            </div>
+                            {/* Directive 1 — binary resolution */}
+                            <button onClick={() => complete(task.id)} title="Success" className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-acid/50 text-acid transition hover:bg-acid/15">
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => doFail(task.id)} title="Failure — Joker Chaos" className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-blood/50 text-blood transition hover:bg-blood/15">
+                              <X className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => clearSlot(d.wd, mins)} title="Unassign" className="absolute -right-1 -top-1 text-ash opacity-0 transition hover:text-bone group-hover:opacity-100">
+                              <X size={11} />
+                            </button>
+                          </motion.div>
                         ) : (
                           <button
                             onClick={() => setPicking({ wd: d.wd, mins })}

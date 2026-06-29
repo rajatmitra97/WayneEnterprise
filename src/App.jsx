@@ -30,6 +30,12 @@ import ContextPanel from './components/ContextPanel'
 import DailyBriefing from './components/DailyBriefing'
 import RogueBossFight from './components/RogueBossFight'
 import UtilityBelt from './components/UtilityBelt'
+import DetectiveBoard from './components/DetectiveBoard'
+import WayneJournal from './components/WayneJournal'
+import AppliedSciences from './components/AppliedSciences'
+import ArkhamInterrogation from './components/ArkhamInterrogation'
+import { startSoundscape, stopSoundscape } from './lib/ambientAudio'
+import { INTERROGATION_HOUR, INTERROGATION_MIN } from './constants'
 
 const pick = (a) => a[Math.floor(Math.random() * a.length)]
 
@@ -40,11 +46,15 @@ export default function App() {
   const ensureBoss = useStore((s) => s.ensureBoss)
   const activeTab = useStore((s) => s.activeTab)
   const beltActive = useStore((s) => s.beltActive)
+  const mode = useStore((s) => s.mode)
+  const muted = useStore((s) => s.muted)
+  const toggleMode = useStore((s) => s.toggleMode)
+  const closedTasks = useStore((s) => s.closedTasks)
+  const lastInterrogation = useStore((s) => s.lastInterrogation)
   const pushToast = useStore((s) => s.pushToast)
   const lastFearToxin = useStore((s) => s.lastFearToxin)
   const tasks = useStore((s) => s.tasks)
   const openCount = useMemo(() => tasks.filter((t) => !t.done).length, [tasks])
-  const mode = useStore((s) => s.mode)
 
   // ── ARKHAM MUTATION debuffs active on the board ──
   const mutations = useMemo(() => selectActiveMutations(tasks), [tasks])
@@ -54,6 +64,14 @@ export default function App() {
   const [toxin, setToxin] = useState(false)
   const [brooding, setBrooding] = useState(false)
   const [scareNow, setScareNow] = useState(false)
+  const [glitch, setGlitch] = useState(false) // cowl-swap screen glitch
+  const [showInterro, setShowInterro] = useState(false) // Arkham Interrogation
+
+  const today = new Date().toISOString().slice(0, 10)
+  const failsToday = useMemo(
+    () => closedTasks.filter((t) => t.failed && t.closedDate === today).length,
+    [closedTasks, today]
+  )
   // Cortical Sync intro: `introDone` unmounts the overlay; `revealed` portals
   // the dashboard up from the darkness in lockstep with the dive.
   const [introDone, setIntroDone] = useState(false)
@@ -121,6 +139,51 @@ export default function App() {
     const t = setInterval(ensureBoss, 60_000)
     return () => clearInterval(t)
   }, [ensureBoss])
+
+  // Directive 3 — Cowl Hotkey: Ctrl/Cmd+Shift+B swaps identity with a glitch.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        setGlitch(true)
+        setTimeout(() => setGlitch(false), 520)
+        toggleMode()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleMode])
+
+  // Directive 9 — identity-tied ambient soundscape (browsers need a gesture,
+  // so we also (re)resume on the first pointer/key event).
+  useEffect(() => {
+    if (muted) {
+      stopSoundscape()
+      return
+    }
+    startSoundscape(mode)
+    const kick = () => startSoundscape(mode)
+    window.addEventListener('pointerdown', kick)
+    window.addEventListener('keydown', kick)
+    return () => {
+      window.removeEventListener('pointerdown', kick)
+      window.removeEventListener('keydown', kick)
+    }
+  }, [mode, muted])
+
+  // Directive 10 — Arkham Interrogation at 23:30 if cases failed today.
+  useEffect(() => {
+    const check = () => {
+      const now = new Date()
+      const past =
+        now.getHours() > INTERROGATION_HOUR ||
+        (now.getHours() === INTERROGATION_HOUR && now.getMinutes() >= INTERROGATION_MIN)
+      if (past && lastInterrogation !== today && failsToday > 0) setShowInterro(true)
+    }
+    check()
+    const t = setInterval(check, 60_000)
+    return () => clearInterval(t)
+  }, [lastInterrogation, failsToday, today])
 
   // Fear-toxin screen flash whenever a penalty fires.
   useEffect(() => {
@@ -194,6 +257,18 @@ export default function App() {
         <LazarusPit />
         <DailyBriefing />
         <UtilityBelt />
+        <ArkhamInterrogation open={showInterro} failCount={failsToday} onClose={() => setShowInterro(false)} />
+
+        {/* Cowl-swap glitch flash (Directive 3) */}
+        {glitch && (
+          <motion.div
+            className="pointer-events-none fixed inset-0 z-[9600]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.7, 0.1, 0.5, 0] }}
+            transition={{ duration: 0.5 }}
+            style={{ background: 'linear-gradient(100deg, rgba(214,37,22,0.3), rgba(86,166,189,0.22))', mixBlendMode: 'screen' }}
+          />
+        )}
 
         {/* The OS materialises from inside his mind as the dive completes. */}
         <motion.div
@@ -224,10 +299,13 @@ export default function App() {
                   </>
                 )}
 
+                {activeTab === 'board' && <DetectiveBoard />}
+
                 {activeTab === 'cave' && (
                   <>
                     <Sectors />
                     <Armory />
+                    <AppliedSciences />
                     <BackupPanel />
                     <Metrics />
                   </>
@@ -236,6 +314,7 @@ export default function App() {
                 {activeTab === 'batcomputer' && (
                   <>
                     <Analytics />
+                    <WayneJournal />
                     <BlackgateKanban />
                     <LongHalloweenHeatmap />
                   </>

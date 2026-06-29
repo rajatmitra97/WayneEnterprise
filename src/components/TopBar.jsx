@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bell, BellOff, Coins } from 'lucide-react'
+import { Bell, BellOff, Coins, Volume2, VolumeX } from 'lucide-react'
 import { useStore } from '../store'
 import CowlToggle from './CowlToggle'
 
@@ -8,6 +8,8 @@ export default function TopBar() {
   const coins = useStore((s) => s.coins)
   const notifyPermission = useStore((s) => s.notifyPermission)
   const requestNotify = useStore((s) => s.requestNotify)
+  const muted = useStore((s) => s.muted)
+  const toggleMute = useStore((s) => s.toggleMute)
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
@@ -37,6 +39,15 @@ export default function TopBar() {
           <span className="text-[26px] leading-none tabular-nums">{coins}</span>
           <span className="text-[12px] tracking-[0.2em] text-ash">WC</span>
         </div>
+        <button
+          onClick={toggleMute}
+          title={muted ? 'Unmute ambience' : 'Mute ambience'}
+          className={`rounded border px-2 py-1.5 transition ${
+            muted ? 'border-rule text-ash hover:text-bone' : 'border-hud/60 text-hud'
+          }`}
+        >
+          {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+        </button>
         <button
           onClick={requestNotify}
           title={granted ? 'Alfred is watching' : 'Enable Alfred notifications'}

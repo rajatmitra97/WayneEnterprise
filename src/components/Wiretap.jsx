@@ -12,6 +12,7 @@ import { useStore } from '../store'
 export default function Wiretap() {
   const wiretap = useStore((s) => s.wiretap)
   const addWiretap = useStore((s) => s.addWiretap)
+  const addJournal = useStore((s) => s.addJournal)
   const removeWiretap = useStore((s) => s.removeWiretap)
   const processWiretap = useStore((s) => s.processWiretap)
   const [text, setText] = useState('')
@@ -20,7 +21,8 @@ export default function Wiretap() {
   const submit = (e) => {
     e.preventDefault()
     if (!text.trim()) return
-    addWiretap(text)
+    addWiretap(text) // stays in the backlog for processing into a case…
+    addJournal(text, 'thought') // …and is filed to the Wayne Journal (Directive 6)
     setText('')
   }
 

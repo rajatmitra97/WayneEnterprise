@@ -17,6 +17,7 @@ export default function CommandConsole() {
   const toggle = useStore((s) => s.toggleCommand)
   const addTask = useStore((s) => s.addTask)
   const delegateTask = useStore((s) => s.delegateTask)
+  const assignSlot = useStore((s) => s.assignSlot)
   const inputRef = useRef(null)
 
   const [raw, setRaw] = useState('')
@@ -25,6 +26,10 @@ export default function CommandConsole() {
   const [ovThreat, setOvThreat] = useState(null)
   const [prep, setPrep] = useState(false)
   const [delegate, setDelegate] = useState(false)
+  // chrono-input (Directive 4) — date + start/end → auto-inject into Dispatch
+  const [date, setDate] = useState('')
+  const [startT, setStartT] = useState('')
+  const [endT, setEndT] = useState('')
 
   // global hotkey
   useEffect(() => {
@@ -44,6 +49,7 @@ export default function CommandConsole() {
   useEffect(() => {
     if (open) {
       setRaw(''); setOvSector(null); setOvThreat(null); setPrep(false); setDelegate(false)
+      setDate(''); setStartT(''); setEndT('')
       setTimeout(() => inputRef.current?.focus(), 60)
     }
   }, [open])
@@ -60,6 +66,13 @@ export default function CommandConsole() {
     if (!title) return
     const id = addTask({ title, sector, threat, recur, schedule, prep: usePrep })
     if (delegate) delegateTask(id) // straight to the underaged sidekick
+    // Chrono-input: if a start time is set, inject into the Dispatch Grid slot.
+    if (startT) {
+      const [hh, mm] = startT.split(':').map(Number)
+      const mins = hh * 60 + (mm || 0)
+      const wd = date ? new Date(date + 'T00:00:00').getDay() : new Date().getDay()
+      assignSlot(wd, mins, id)
+    }
     close()
   }
 
@@ -139,6 +152,15 @@ export default function CommandConsole() {
                     {t.label}
                   </Chip>
                 ))}
+              </ToggleRow>
+
+              {/* Directive 4 — chrono scheduling → Dispatch Grid */}
+              <ToggleRow label="CHRONO">
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field h-9" />
+                <input type="time" value={startT} onChange={(e) => setStartT(e.target.value)} title="Start" className="field h-9" />
+                <span className="self-center font-display text-[12px] text-ash">→</span>
+                <input type="time" value={endT} onChange={(e) => setEndT(e.target.value)} title="End" className="field h-9" />
+                {startT && <span className="self-center font-display text-[10px] tracking-[0.15em] text-hud">▸ AUTO-DISPATCH</span>}
               </ToggleRow>
 
               <div className="flex flex-wrap items-center gap-2 pt-1">

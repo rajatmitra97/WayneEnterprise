@@ -639,10 +639,12 @@ export const SCRAMBLE_CHARS = '?@#$%&!§¿※†‡▓░▒'
    ═══════════════════════════════════════════════════════════════════ */
 
 // ── Tactical navigation tabs (left Mainframe Uplink) ─────────────────
+// icon = lucide-react name — every one verified to exist in 0.417.
 export const TABS = [
   { id: 'mission', label: 'Mission Control', sub: 'OPS', icon: 'Crosshair' },
-  { id: 'cave', label: 'The Cave', sub: 'ARMORY · UPGRADES', icon: 'Mountain' },
-  { id: 'batcomputer', label: 'Batcomputer', sub: 'ANALYTICS · EVIDENCE', icon: 'Cpu' },
+  { id: 'board', label: 'Detective Board', sub: 'CONNECT THE DOTS', icon: 'Network' },
+  { id: 'cave', label: 'The Cave', sub: 'ARMORY · R&D', icon: 'Mountain' },
+  { id: 'batcomputer', label: 'Batcomputer', sub: 'ANALYTICS · JOURNAL', icon: 'Cpu' },
   { id: 'arkham', label: 'Arkham', sub: 'ROGUE BOSSES', icon: 'Skull' },
 ]
 
@@ -675,4 +677,44 @@ export const GADGET_ASSETS = {
   emp: 'assets/gadgets/emp.png',
   cape: 'assets/gadgets/cape.png',
   tumbler: 'assets/gadgets/tumbler.png',
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   V8 // THE DETECTIVE BOARD UPDATE
+   ═══════════════════════════════════════════════════════════════════ */
+
+// ── Lazarus Pit — revive a failed Core Task (Directive 7) ────────────
+export const LAZARUS_REVIVE_COST = 150 // Wayne Coins
+export const LAZARUS_SCAR = '#39ff14' // permanent green scar
+
+// ── Lucius Fox R&D — 24h research projects (Directive 8) ─────────────
+export const RESEARCH_HOURS = 24
+export const RESEARCH_PROJECTS = [
+  { id: 'track-storm', kind: 'TRACK', cost: 300, name: 'Cave Storm Mix', desc: 'Unlock a heavier thunder soundscape.' },
+  { id: 'track-piano', kind: 'TRACK', cost: 300, name: 'Wayne Nocturne', desc: 'Unlock a warm piano layer for Wayne Mode.' },
+  { id: 'theme-amber', kind: 'THEME', cost: 500, name: 'Amber HUD Skin', desc: 'Unlock a bat-gold accent theme.' },
+  { id: 'buff-xp', kind: 'BUFF', cost: 800, name: 'Applied Sciences Grant', desc: 'Permanent +5% XP on every case.' },
+]
+
+// ── Wayne Journal (Directive 6) ──────────────────────────────────────
+export const JOURNAL_KINDS = {
+  thought: { label: 'INTERCEPT', color: '#9c5248' },
+  interrogation: { label: 'DEBRIEF', color: '#D62516' },
+}
+
+// ── Arkham Interrogation (Directive 10) ──────────────────────────────
+export const INTERROGATION_HOUR = 23 // 23:30
+export const INTERROGATION_MIN = 30
+export const INTERROGATION_PENALTY_RELIEF = 0.5 // writing halves the Joker Chaos
+
+// ── Detective Board node types (Directive 2) ─────────────────────────
+export const NODE = { CATEGORY: 'category', CORE: 'core', SUB: 'sub' }
+// fixed starting anchor positions for the 6 category nodes (% of canvas)
+export const CATEGORY_ANCHORS = {
+  body: { x: 10, y: 12 },
+  mind: { x: 40, y: 8 },
+  wealth: { x: 72, y: 14 },
+  allies: { x: 14, y: 70 },
+  soul: { x: 44, y: 78 },
+  project: { x: 78, y: 66 },
 }
