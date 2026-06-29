@@ -642,7 +642,7 @@ export const SCRAMBLE_CHARS = '?@#$%&!§¿※†‡▓░▒'
 export const TABS = [
   { id: 'mission', label: 'Mission Control', sub: 'OPS', icon: 'Crosshair' },
   { id: 'cave', label: 'The Cave', sub: 'ARMORY · UPGRADES', icon: 'Mountain' },
-  { id: 'batcomputer', label: 'Batcomputer', sub: 'ANALYTICS · EVIDENCE', icon: 'MonitorDot' },
+  { id: 'batcomputer', label: 'Batcomputer', sub: 'ANALYTICS · EVIDENCE', icon: 'Cpu' },
   { id: 'arkham', label: 'Arkham', sub: 'ROGUE BOSSES', icon: 'Skull' },
 ]
 

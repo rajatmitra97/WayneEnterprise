@@ -3,11 +3,12 @@
    Vantablack, w-20 collapsed → w-64 on hover. Routes the main view.
    ═══════════════════════════════════════════════════════════════════ */
 import { motion } from 'framer-motion'
-import { Crosshair, Mountain, MonitorDot, Skull } from 'lucide-react'
+import { Crosshair, Mountain, Cpu, Skull } from 'lucide-react'
 import { useStore } from '../store'
 import { TABS } from '../constants'
 
-const ICONS = { Crosshair, Mountain, MonitorDot, Skull }
+// Map tab icon names → components. All verified to exist in lucide-react.
+const ICONS = { Crosshair, Mountain, Cpu, Skull }
 
 export default function Sidebar() {
   const activeTab = useStore((s) => s.activeTab)
