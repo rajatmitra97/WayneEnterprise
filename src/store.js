@@ -224,6 +224,11 @@ export const useStore = create(
       muted: false, // global ambient mute
       lastInterrogation: null, // date of last Arkham Interrogation
 
+      // ── V9 Arkham Interrogation Protocol ──
+      slotResolutions: {}, // "wd:mins" → {state:'done'|'failed', title, sector, threat} (clears at midnight)
+      adHackedUntil: 0, // Cryptographic Sequencer hides the Gazette ad until this ts
+      hoveredTaskId: null, // task under the cursor, for the 'T' quick-schedule hotkey
+
       // ── FOUNDATION (full UI lands in the next stage) ──
       contingencies: [], // {id, label, when, then, enabled, armed}
       rnd: [], // Lucius Fox prototypes {id, title, stage, invested}
@@ -490,6 +495,7 @@ export const useStore = create(
           lastFearToxin: failed > 0 ? Date.now() : st.lastFearToxin,
           pendingTwoFace: st.pendingTwoFace || streakShattered,
           notifiedSlots: {}, // fresh chrono log each new day
+          slotResolutions: {}, // routine ticks/crosses reset at midnight
         })
 
         if (failed > 0) get().pushToast('ALFRED', pick(ALFRED.fail), 'blood')
@@ -641,6 +647,73 @@ export const useStore = create(
 
       /* ════════════ V7 · UTILITY BELT ═══════════════════════════ */
       setBeltActive: (gadgetId) => set((st) => ({ beltActive: st.beltActive === gadgetId ? null : gadgetId })),
+
+      /* ════════════ V9 · PERSISTENT SLOT RESOLUTION ════════════ */
+      // Tick → award + the block stays green until midnight.
+      resolveSlotDone: (wd, mins) => {
+        const key = `${wd}:${mins}`
+        const st = get()
+        const taskId = st.schedule[key]
+        const t = taskId ? st.tasks.find((x) => x.id === taskId) : null
+        const cache = t ? { title: t.title, sector: t.sector, threat: t.threat } : { title: '—', sector: 'mind', threat: 'MEDIUM' }
+        if (t) get().completeTask(t.id)
+        const sched = { ...get().schedule }
+        delete sched[key]
+        set((s2) => ({ schedule: sched, slotResolutions: { ...s2.slotResolutions, [key]: { state: 'done', ...cache } } }))
+      },
+      // Cross → Joker Chaos + the block stays red until midnight.
+      resolveSlotFail: (wd, mins) => {
+        const key = `${wd}:${mins}`
+        const st = get()
+        const taskId = st.schedule[key]
+        const t = taskId ? st.tasks.find((x) => x.id === taskId) : null
+        const cache = t ? { title: t.title, sector: t.sector, threat: t.threat } : { title: '—', sector: 'mind', threat: 'MEDIUM' }
+        if (t) get().failRoutineTask(t.id) // applies chaos + graveyard + unschedules
+        set((s2) => ({ slotResolutions: { ...s2.slotResolutions, [key]: { state: 'failed', ...cache } } }))
+      },
+      // Smoke Pellet → forgive a FAILED slot, reset it to a pending case.
+      smokeResetSlot: (wd, mins) => {
+        const key = `${wd}:${mins}`
+        const st = get()
+        const res = st.slotResolutions[key]
+        if (!res || res.state !== 'failed') return false
+        const next = { ...st.slotResolutions }
+        delete next[key]
+        set({ slotResolutions: next, failedCount: Math.max(0, st.failedCount - 1) })
+        const id = get().addTask({ title: res.title, sector: res.sector, threat: res.threat })
+        get().assignSlot(wd, mins, id)
+        get().pushToast('SMOKE PELLET', 'Vanished. The failure is forgiven — back to pending.', 'gold')
+        return true
+      },
+      clearSlotResolutions: () => set({ slotResolutions: {} }),
+
+      /* ════════════ V9 · UTILITY BELT (gadget effects) ═════════ */
+      hackAd: () => {
+        set({ adHackedUntil: Date.now() + 4 * 3600000 })
+        get().pushToast('CRYPTO SEQUENCER', 'Signal hijacked. The broadcast is dark for 4 hours.', 'gold')
+      },
+
+      /* ════════════ V9 · QUICK-SCHEDULE (T hotkey) ═════════════ */
+      setHoveredTask: (id) => set({ hoveredTaskId: id }),
+      assignToTodayNextSlot: (taskId) => {
+        const st = get()
+        const t = st.tasks.find((x) => x.id === taskId)
+        if (!t) return false
+        const wd = new Date().getDay()
+        const nowMins = new Date().getHours() * 60 + new Date().getMinutes()
+        // first empty 60-min slot from now until end of the patrol window
+        for (let h = Math.max(5, Math.ceil(nowMins / 60)); h < 24; h++) {
+          const mins = h * 60
+          const key = `${wd}:${mins}`
+          if (!st.schedule[key] && !st.slotResolutions[key]) {
+            get().assignSlot(wd, mins, taskId)
+            get().pushToast('DISPATCH', `Scheduled to today, ${String(h).padStart(2, '0')}:00.`, 'gold')
+            return true
+          }
+        }
+        get().pushToast('DISPATCH', 'No open slots left today, sir.', 'blood')
+        return false
+      },
 
       /* ════════════ V8 · BINARY ROUTINE FAIL + LAZARUS ══════════ */
       // Red 'X' on a routine task → Joker Chaos + the case rots in the Graveyard.
@@ -1049,6 +1122,9 @@ export const useStore = create(
           unlockedResearch: [],
           muted: false,
           lastInterrogation: null,
+          slotResolutions: {},
+          adHackedUntil: 0,
+          hoveredTaskId: null,
           rogueStats: { riddler: 0, freeze: 0, ivy: 0, bane: 0 },
           contingencies: [],
           rnd: [],
@@ -1063,11 +1139,12 @@ export const useStore = create(
       partialize: (st) => {
         // never persist transient UI noise (toasts, open-console flag, belt mode,
         // the contextual-panel target)
-        const { toasts, commandOpen, beltActive, contextTaskId, ...rest } = st
+        const { toasts, commandOpen, beltActive, contextTaskId, hoveredTaskId, ...rest } = st
         void toasts
         void commandOpen
         void beltActive
         void contextTaskId
+        void hoveredTaskId
         return rest
       },
     }

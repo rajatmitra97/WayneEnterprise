@@ -6,7 +6,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, Plus, CalendarClock, Check } from 'lucide-react'
+import { X, Plus, CalendarClock, Check, Trash2 } from 'lucide-react'
 import { useStore } from '../store'
 import {
   SECTORS, THREAT, DISPATCH_DAYS, DISPATCH_START_HOUR, DISPATCH_END_HOUR,
@@ -17,19 +17,24 @@ import Panel from './Panel'
 export default function DispatchGrid() {
   const tasks = useStore((s) => s.tasks)
   const schedule = useStore((s) => s.schedule)
+  const resolutions = useStore((s) => s.slotResolutions)
+  const boardSubs = useStore((s) => s.boardSubs)
   const assignSlot = useStore((s) => s.assignSlot)
   const clearSlot = useStore((s) => s.clearSlot)
-  const complete = useStore((s) => s.completeTask)
-  const failRoutine = useStore((s) => s.failRoutineTask)
+  const resolveDone = useStore((s) => s.resolveSlotDone)
+  const resolveFail = useStore((s) => s.resolveSlotFail)
+  const setHovered = useStore((s) => s.setHoveredTask)
 
   const [gran, setGran] = useState(60) // minutes per block
   const [picking, setPicking] = useState(null) // { wd, mins } awaiting a task
-  const [failingId, setFailingId] = useState(null) // jagged-strike animation target
+  const [failingKey, setFailingKey] = useState(null) // jagged-strike target slot
+  const [whisper, setWhisper] = useState(null) // { key, task, subs } Oracle hover preview
 
-  // play the jagged red strike, THEN send the case to the Graveyard
-  const doFail = (id) => {
-    setFailingId(id)
-    setTimeout(() => { failRoutine(id); setFailingId(null) }, 460)
+  // play the jagged red strike, THEN persist the failure on the slot
+  const doFail = (wd, mins) => {
+    const key = `${wd}:${mins}`
+    setFailingKey(key)
+    setTimeout(() => { resolveFail(wd, mins); setFailingKey(null) }, 460)
   }
   const [, tick] = useState(0) // keep the live-slot highlight current
   useEffect(() => {
@@ -116,67 +121,69 @@ export default function DispatchGrid() {
                 </div>
 
                 {DISPATCH_DAYS.map((d) => {
-                  const task = resolve(d.wd, mins)
+                  const key = `${d.wd}:${mins}`
+                  const res = resolutions[key]
+                  const task = res ? null : resolve(d.wd, mins)
                   const isLive = d.wd === nowWd && mins === liveSlot
-                  const meta = task ? THREAT[task.threat] : null
-                  const overdueLive = isLive && task && !task.done
+                  const meta = task ? THREAT[task.threat] : res ? THREAT[res.threat] : null
+                  const lowThreat = task && THREAT[task.threat].rank <= 1
                   return (
                     <div
                       key={d.wd}
+                      data-slot={key}
+                      data-taskid={task ? task.id : ''}
+                      data-state={res ? res.state : task ? 'pending' : 'empty'}
+                      data-low={lowThreat ? '1' : ''}
                       className={`relative m-0.5 min-h-[44px] rounded border ${
                         isLive ? 'animate-slot-glow border-gold/70' : 'border-rule/50'
                       }`}
                       style={{ background: isLive ? 'rgba(215,52,35,0.06)' : 'rgba(150,30,22,0.05)' }}
                     >
-                      {/* scanning laser over the active hour */}
                       {isLive && <div className="dispatch-laser animate-laser-scan" />}
 
                       <AnimatePresence mode="popLayout">
-                        {task ? (
+                        {res ? (
+                          /* ── RESOLVED (persists until midnight) ── */
                           <motion.div
-                            key={task.id}
-                            layout
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.85 }}
-                            className={`group relative flex h-full w-full items-center gap-1 rounded px-1.5 py-1 ${
-                              overdueLive ? 'animate-arkham-pulse' : ''
-                            } ${task.lazarusScar ? 'ring-1 ring-[#39ff14]' : ''}`}
-                            style={{
-                              background: `${meta.color}22`,
-                              borderLeft: `3px solid ${task.lazarusScar ? '#39ff14' : meta.color}`,
-                              boxShadow: task.lazarusScar ? '0 0 12px -4px #39ff14' : undefined,
-                            }}
+                            key={'res' + key}
+                            initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
+                            className={`relative flex h-full w-full items-center gap-1 rounded px-1.5 py-1 ${failingKey === key ? 'animate-fear-toxin' : ''}`}
+                            style={res.state === 'done'
+                              ? { background: 'rgba(85,119,129,0.18)', borderLeft: '3px solid #39ff14' }
+                              : { background: 'rgba(214,37,22,0.16)', borderLeft: '3px solid #D62516' }}
+                          >
+                            <span className={`block min-w-0 flex-1 truncate font-mono text-[12px] leading-tight ${res.state === 'done' ? 'text-ash line-through' : 'text-blood'}`}>
+                              {res.title}
+                            </span>
+                            <span className="font-display text-[10px] tracking-[0.12em]" style={{ color: res.state === 'done' ? '#39ff14' : '#D62516' }}>
+                              {res.state === 'done' ? '✓' : '✕'}
+                            </span>
+                          </motion.div>
+                        ) : task ? (
+                          /* ── PENDING — Tick / Cross / Trash ── */
+                          <motion.div
+                            key={task.id} layout
+                            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.85 }}
+                            onMouseEnter={() => { setHovered(task.id); setWhisper({ key, task, subs: boardSubs.filter((s) => task.coreId && s.coreId === task.coreId) }) }}
+                            onMouseLeave={() => { setHovered(null); setWhisper((w) => (w && w.key === key ? null : w)) }}
+                            className={`group relative flex h-full w-full items-center gap-1 rounded px-1.5 py-1 ${task.lazarusScar ? 'ring-1 ring-[#39ff14]' : ''}`}
+                            style={{ background: `${meta.color}22`, borderLeft: `3px solid ${task.lazarusScar ? '#39ff14' : meta.color}`, boxShadow: task.lazarusScar ? '0 0 12px -4px #39ff14' : undefined }}
                           >
                             <div className="relative min-w-0 flex-1">
-                              <span className={`block truncate font-mono text-[12px] leading-tight ${failingId === task.id ? 'text-blood' : 'text-bone'}`}>{task.title}</span>
-                              <span className="font-display text-[9px] tracking-[0.16em]" style={{ color: meta.color }}>
-                                {SECTORS[task.sector]?.name?.toUpperCase() || 'CASE'}
-                              </span>
-                              {/* jagged red FAIL strike */}
-                              {failingId === task.id && (
-                                <motion.svg viewBox="0 0 100 12" preserveAspectRatio="none" className="pointer-events-none absolute left-0 top-1/2 h-3 w-full -translate-y-1/2 overflow-visible" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
-                                  <motion.polyline points="0,6 10,1 20,11 30,2 40,10 50,3 60,9 70,2 80,10 90,4 100,7" fill="none" stroke="#D62516" strokeWidth="2.5" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px #ff3422)' }} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.4 }} preserveAspectRatio="none" />
+                              <span className={`block truncate font-mono text-[12px] leading-tight ${failingKey === key ? 'text-blood' : 'text-bone'}`}>{task.title}</span>
+                              <span className="font-display text-[9px] tracking-[0.16em]" style={{ color: meta.color }}>{SECTORS[task.sector]?.name?.toUpperCase() || 'CASE'}</span>
+                              {failingKey === key && (
+                                <motion.svg viewBox="0 0 100 12" preserveAspectRatio="none" className="pointer-events-none absolute left-0 top-1/2 h-3 w-full -translate-y-1/2 overflow-visible" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                  <polyline points="0,6 10,1 20,11 30,2 40,10 50,3 60,9 70,2 80,10 90,4 100,7" fill="none" stroke="#D62516" strokeWidth="2.5" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px #ff3422)' }} preserveAspectRatio="none" />
                                 </motion.svg>
                               )}
                             </div>
-                            {/* Directive 1 — binary resolution */}
-                            <button onClick={() => complete(task.id)} title="Success" className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-acid/50 text-acid transition hover:bg-acid/15">
-                              <Check className="h-4 w-4" />
-                            </button>
-                            <button onClick={() => doFail(task.id)} title="Failure — Joker Chaos" className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-blood/50 text-blood transition hover:bg-blood/15">
-                              <X className="h-4 w-4" />
-                            </button>
-                            <button onClick={() => clearSlot(d.wd, mins)} title="Unassign" className="absolute -right-1 -top-1 text-ash opacity-0 transition hover:text-bone group-hover:opacity-100">
-                              <X size={11} />
-                            </button>
+                            <button onClick={() => resolveDone(d.wd, mins)} title="Complete" className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-acid/50 text-acid transition hover:bg-acid/15"><Check className="h-4 w-4" /></button>
+                            <button onClick={() => doFail(d.wd, mins)} title="Fail — Joker Chaos" className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-blood/50 text-blood transition hover:bg-blood/15"><X className="h-4 w-4" /></button>
+                            <button onClick={() => clearSlot(d.wd, mins)} title="Remove (back to backlog)" className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-rule text-ash transition hover:text-bone"><Trash2 className="h-3.5 w-3.5" /></button>
                           </motion.div>
                         ) : (
-                          <button
-                            onClick={() => setPicking({ wd: d.wd, mins })}
-                            className="flex h-full w-full items-center justify-center text-ash/30 transition hover:text-gold"
-                            title="Assign a case"
-                          >
+                          <button onClick={() => setPicking({ wd: d.wd, mins })} className="flex h-full w-full items-center justify-center text-ash/30 transition hover:text-gold" title="Assign a case">
                             <Plus size={16} />
                           </button>
                         )}
@@ -189,6 +196,37 @@ export default function DispatchGrid() {
           </div>
         </div>
       </div>
+
+      {/* Directive 6 — The Oracle Whisper: dim the room, float the dossier */}
+      <AnimatePresence>
+        {whisper && (
+          <>
+            <motion.div className="pointer-events-none fixed inset-0 z-[6600] bg-void/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
+            <motion.div
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="glass hud-corners pointer-events-none fixed bottom-6 left-1/2 z-[6700] w-[320px] -translate-x-1/2 p-3"
+              style={{ borderColor: 'rgba(214,37,22,0.5)' }}
+            >
+              <div className="mb-1 font-display text-[10px] tracking-[0.25em] text-gotham-slate">// ORACLE WHISPER</div>
+              <div className="font-tech text-[16px] font-medium text-bone">{whisper.task.title}</div>
+              <div className="mt-0.5 font-display text-[10px] tracking-[0.14em]" style={{ color: SECTORS[whisper.task.sector]?.accent }}>
+                {SECTORS[whisper.task.sector]?.name?.toUpperCase()} · {THREAT[whisper.task.threat].tag}
+              </div>
+              {whisper.subs.length > 0 && (
+                <div className="mt-2 space-y-1 border-t border-rule pt-2">
+                  {whisper.subs.map((s) => (
+                    <div key={s.id} className="flex items-center gap-1.5 font-mono text-[12px]">
+                      <span className={s.done ? 'text-acid' : 'text-ash'}>{s.done ? '✓' : '▫'}</span>
+                      <span className={s.done ? 'text-ash line-through' : 'text-bone-dim'}>{s.title}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 font-mono text-[10px] tracking-[0.1em] text-ash">press 'T' anywhere to re-schedule today</div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* assignment picker */}
       <AnimatePresence>

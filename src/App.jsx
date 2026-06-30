@@ -34,6 +34,8 @@ import DetectiveBoard from './components/DetectiveBoard'
 import WayneJournal from './components/WayneJournal'
 import AppliedSciences from './components/AppliedSciences'
 import ArkhamInterrogation from './components/ArkhamInterrogation'
+import ArkhamCell from './components/ArkhamCell'
+import GothamGazetteAd from './components/GothamGazetteAd'
 import { startSoundscape, stopSoundscape } from './lib/ambientAudio'
 import { INTERROGATION_HOUR, INTERROGATION_MIN } from './constants'
 
@@ -141,13 +143,21 @@ export default function App() {
   }, [ensureBoss])
 
   // Directive 3 — Cowl Hotkey: Ctrl/Cmd+Shift+B swaps identity with a glitch.
+  // Directive 8 — 'T' over a hovered task → schedule it to today's next slot.
   useEffect(() => {
     const onKey = (e) => {
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'b') {
         e.preventDefault()
         setGlitch(true)
         setTimeout(() => setGlitch(false), 520)
         toggleMode()
+      } else if (!typing && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 't') {
+        const { hoveredTaskId, assignToTodayNextSlot } = useStore.getState()
+        if (hoveredTaskId) {
+          e.preventDefault()
+          assignToTodayNextSlot(hoveredTaskId)
+        }
       }
     }
     window.addEventListener('keydown', onKey)
@@ -315,6 +325,7 @@ export default function App() {
                   <>
                     <Analytics />
                     <WayneJournal />
+                    <GothamGazetteAd className="col-span-12 lg:col-span-6" />
                     <BlackgateKanban />
                     <LongHalloweenHeatmap />
                   </>
@@ -324,6 +335,12 @@ export default function App() {
                   <>
                     <RogueBossFight />
                     <RasPanel />
+                  </>
+                )}
+
+                {activeTab === 'cell' && (
+                  <>
+                    <ArkhamCell />
                   </>
                 )}
               </main>

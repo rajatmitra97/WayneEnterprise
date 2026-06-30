@@ -54,6 +54,7 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
   const openContext = useStore((s) => s.openContext)
   const beltActive = useStore((s) => s.beltActive)
   const setBeltActive = useStore((s) => s.setBeltActive)
+  const setHovered = useStore((s) => s.setHoveredTask)
   const signal = useStore((s) => s.signal)
   const isScrambled = useStore((s) => s.riddlerScrambled.includes(task.id))
 
@@ -102,7 +103,11 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
       animate={{ opacity: task.done ? 0.45 : 1, x: 0, height: 'auto' }}
       exit={{ opacity: 0, scale: 0, transition: { type: 'spring', stiffness: 420, damping: 18 } }}
       transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+      onMouseEnter={() => setHovered(task.id)}
+      onMouseLeave={() => setHovered(null)}
       className={`group relative grid grid-cols-[40px_1fr_auto] items-center gap-3 rounded border-l-2 px-3 py-3 ${
+        task.done ? 'blur-[2px]' : ''
+      } ${
         mutation
           ? `border ${mutation.cls} animate-arkham-pulse`
           : enraged

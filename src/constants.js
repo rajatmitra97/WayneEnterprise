@@ -646,6 +646,7 @@ export const TABS = [
   { id: 'cave', label: 'The Cave', sub: 'ARMORY · R&D', icon: 'Mountain' },
   { id: 'batcomputer', label: 'Batcomputer', sub: 'ANALYTICS · JOURNAL', icon: 'Cpu' },
   { id: 'arkham', label: 'Arkham', sub: 'ROGUE BOSSES', icon: 'Skull' },
+  { id: 'cell', label: 'The Cell', sub: 'INTERROGATION', icon: 'Lock' },
 ]
 
 // ── Daily Alfred Briefing ────────────────────────────────────────────
@@ -718,3 +719,55 @@ export const CATEGORY_ANCHORS = {
   soul: { x: 44, y: 78 },
   project: { x: 78, y: 66 },
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   V9 // THE ARKHAM INTERROGATION PROTOCOL
+   ═══════════════════════════════════════════════════════════════════ */
+
+// ── Utility Belt drag-tools (Directive 2) ────────────────────────────
+export const GADGET_TOOLS = {
+  batarang: { verb: 'SLICE', target: 'pending low-threat case → instant COMPLETE', color: '#D62516' },
+  smoke: { verb: 'VANISH', target: 'a FAILED case → forgive, reset to PENDING', color: '#9c5248' },
+  optics: { verb: 'SEQUENCE', target: 'the Gazette ad → hack & hide for 4 hours', color: '#D73423' },
+}
+export const AD_HACK_HOURS = 4
+
+// ── Immersive ad header (Directive 5) ────────────────────────────────
+export const GAZETTE_HEADERS = [
+  '// INTERCEPTED BROADCAST: WAYNE ENTERPRISES SPONSOR NETWORK',
+  '// GOTHAM GAZETTE CLASSIFIEDS',
+  '// GCPD PUBLIC FREQUENCY — UNVERIFIED SIGNAL',
+]
+
+// ── Arkham Cell minigame (Directive 10) ──────────────────────────────
+// 3 PNG states per villain: okay → hurt → plastered.
+export const CELL_VILLAINS = [
+  { id: 'riddler', name: 'The Riddler', color: '#39ff14',
+    states: { okay: 'assets/villains/riddler-okay.png', hurt: 'assets/villains/riddler-hurt.png', plastered: 'assets/villains/riddler-plastered.png' } },
+  { id: 'joker', name: 'The Joker', color: '#8a2be2',
+    states: { okay: 'assets/villains/joker-okay.png', hurt: 'assets/villains/joker-hurt.png', plastered: 'assets/villains/joker-plastered.png' } },
+  { id: 'bane', name: 'Bane', color: '#b8341c',
+    states: { okay: 'assets/villains/bane-okay.png', hurt: 'assets/villains/bane-hurt.png', plastered: 'assets/villains/bane-plastered.png' } },
+]
+export const CELL_BREAK_CLICKS = 10
+// Humorous reactions while being interrogated (random per click).
+export const CELL_TAUNTS = [
+  'Ow! Is that all you—OW!',
+  'You call that an interrogation?',
+  'The Bat is getting SOFT— ouch!',
+  'I know things! Important things! Stop—',
+  'My lawyer will hear about this!',
+  'Theatricality! Deception! ...pain!',
+  'HAHAHA— okay that one hurt.',
+]
+// Hidden Wayne OS tips, revealed when a Rogue breaks.
+export const CELL_TIPS = [
+  "Alright, ALRIGHT! Hover a task and press 'T' to schedule it for today! Now leave me alone!",
+  'Fine! Drag the Batarang from your belt onto a small task to slice it done instantly!',
+  'I confess! The Smoke Pellet resets a FAILED routine slot back to pending. Forgiveness! Ow!',
+  'Cmd/Ctrl + Shift + B swaps Bruce and Batman. I TOLD you, stop hitting me!',
+  'Cmd/Ctrl + K opens the Command Console. Now untie me!',
+  'The Detective Board is for PLANNING — drag sub-tasks into the routine to EXECUTE. Please!',
+  'Complete a Core Task only by scheduling it in Dispatch. That is the rule! AAAGH!',
+  'The Lazarus Pit revives a dead case — for a price. Now I have said too much!',
+]
