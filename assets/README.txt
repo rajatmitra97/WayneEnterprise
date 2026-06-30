@@ -46,6 +46,16 @@ V7 character & gadget art (all optional — vector fallbacks render until added)
   public/assets/gadgets/cape.png
   public/assets/gadgets/tumbler.png
 
+V9 art (all optional — vector/styled fallbacks render until added)
+------------------------------------------------------------------
+  public/assets/major-sticky.png         Detective Board core sticky-note (square-ish)
+  public/assets/sub-sticky.png           Detective Board sub-task sticky (small)
+  public/assets/villains/riddler-okay.png      Arkham Cell minigame — 3 states each:
+  public/assets/villains/riddler-hurt.png        okay → hurt → plastered (transparent PNG)
+  public/assets/villains/riddler-plastered.png
+  public/assets/villains/joker-okay.png   (+ joker-hurt, joker-plastered)
+  public/assets/villains/bane-okay.png    (+ bane-hurt,  bane-plastered)
+
 Notes
 -----
 - Empire is a JPG (full-frame background). Machine and Body are PNGs so their
