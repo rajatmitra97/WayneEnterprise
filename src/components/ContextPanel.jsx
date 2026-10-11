@@ -6,8 +6,8 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Save, Check, Trash2 } from 'lucide-react'
-import { useStore, threatLocked, abandonCost, nightWeekday } from '../store'
-import { SECTORS, SECTOR_ORDER, THREAT, THREAT_ORDER, RECUR, WEEKDAYS_FULL } from '../constants'
+import { useStore, threatLocked, abandonCost, nightWeekday, todayKey, shiftKey } from '../store'
+import { SECTORS, SECTOR_ORDER, THREAT, THREAT_ORDER, RECUR, WEEKDAYS_FULL, HANDOFF_DEFAULT_NIGHTS } from '../constants'
 
 export default function ContextPanel() {
   const id = useStore((s) => s.contextTaskId)
@@ -19,6 +19,10 @@ export default function ContextPanel() {
   // terms are set at intake: threat (and one-off ↔ routine) lock after 10 minutes
   const locked = useStore((s) => (task ? threatLocked(s, task) : false))
   const [abandonQuote, setAbandonQuote] = useState(null)
+  const handOff = useStore((s) => s.handOff)
+  const takeBack = useStore((s) => s.takeBack)
+  const [handTo, setHandTo] = useState('')
+  const [handBy, setHandBy] = useState('')
 
   const [title, setTitle] = useState('')
   const [sector, setSector] = useState('body')
@@ -37,7 +41,11 @@ export default function ContextPanel() {
   useEffect(() => {
     if (id && !task) close()
   }, [id, task, close])
-  useEffect(() => setAbandonQuote(null), [id])
+  useEffect(() => {
+    setAbandonQuote(null)
+    setHandTo('')
+    setHandBy(shiftKey(todayKey(), HANDOFF_DEFAULT_NIGHTS))
+  }, [id])
 
   const askAbandon = () => {
     const cost = abandonCost(useStore.getState(), task)
@@ -110,6 +118,43 @@ export default function ContextPanel() {
               {WEEKDAYS_FULL.map((d, i) => (
                 <button key={i} onClick={() => toggleDay(i)} className={`h-9 w-9 border font-display text-[11px] transition ${days.includes(i) ? 'border-gold bg-gold/15 text-gold' : 'border-rule text-ash'}`}>{d[0]}</button>
               ))}
+            </div>
+          )}
+
+          {/* THE FAMILY — a real hand-off, still your responsibility */}
+          <label className="mb-1 mt-2 block font-display text-[10px] tracking-[0.25em] text-ash">HAND OFF</label>
+          {task.assignedTo ? (
+            <div className="flex items-center justify-between gap-2 border border-rule px-3 py-2">
+              <span className="font-mono text-[12px] text-bone">
+                With {task.assignedTo}{task.followUpOn ? ` · check ${task.followUpOn}` : ''}
+              </span>
+              <button onClick={() => takeBack(id)} className="font-display text-[11px] tracking-[0.15em] text-gold hover:text-bone">
+                TAKE BACK
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={handTo}
+                onChange={(e) => setHandTo(e.target.value)}
+                placeholder="who's doing it?"
+                className="field h-9 min-w-0 flex-1"
+              />
+              <input
+                type="date"
+                value={handBy}
+                min={todayKey()}
+                onChange={(e) => setHandBy(e.target.value)}
+                title="Follow-up night — the case is exempt from the overdue lock until then"
+                className="field h-9"
+              />
+              <button
+                onClick={() => handOff(id, handTo, handBy)}
+                disabled={!handTo.trim()}
+                className="border border-rule px-3 font-display text-[11px] tracking-[0.15em] text-bone-dim transition hover:border-gold hover:text-gold disabled:opacity-40"
+              >
+                HAND OFF
+              </button>
             </div>
           )}
 

@@ -3,15 +3,11 @@
    completion sequence (Directive 5): rust flash, CASE CLOSED stamp, a
    batarang slash through the title, a particle burst, then a spring shrink.
    ═══════════════════════════════════════════════════════════════════ */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Pencil, Trash2, Repeat, Radio, Eye, Clock, Users, Newspaper, Flame, Bird, Sparkles, Skull } from 'lucide-react'
+import { Check, Pencil, Trash2, Repeat, Radio, Eye, Clock, Newspaper, Flame, UserCheck } from 'lucide-react'
 import { useStore, signalBlock, abandonCost } from '../store'
-import { SECTORS, THREAT, RECUR, WEEKDAYS, PREP_DEFAULT_MS, SIDEKICKS, MUTATIONS, SCRAMBLE_CHARS } from '../constants'
-
-const SK_ICONS = { Bird, Sparkles, Skull, Radio }
-const scramble = (text) =>
-  text.split('').map((c) => (c === ' ' ? ' ' : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)])).join('')
+import { SECTORS, THREAT, RECUR, WEEKDAYS, PREP_DEFAULT_MS, MUTATIONS } from '../constants'
 
 function recurLabel(t) {
   if (t.recur === RECUR.NONE) return null
@@ -50,13 +46,11 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
   const remove = useStore((s) => s.deleteTask)
   const setSignal = useStore((s) => s.setSignal)
   const requirePrep = useStore((s) => s.requirePrep)
-  const assignTaskTo = useStore((s) => s.assignTaskTo)
   const openContext = useStore((s) => s.openContext)
   const beltActive = useStore((s) => s.beltActive)
   const setBeltActive = useStore((s) => s.setBeltActive)
   const setHovered = useStore((s) => s.setHoveredTask)
   const signal = useStore((s) => s.signal)
-  const isScrambled = useStore((s) => s.riddlerScrambled.includes(task.id))
   // one Signal per night, High/Arkham only — the button only shows when allowed
   const canSignal = useStore((s) => !signalBlock(s, task))
 
@@ -71,15 +65,10 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
   // Utility Belt — Batarang armed: low-level cases become one-click slice targets
   const sliceable = beltActive === 'batarang' && lowThreat && !task.done && !locked
 
-  // Riddler cipher — scramble the title (stable until cipher lifts)
-  const displayTitle = useMemo(
-    () => (isScrambled ? scramble(task.title) : task.title),
-    [isScrambled, task.title]
-  )
+  const handedOff = !!task.assignedTo
 
   const [now, setNow] = useState(Date.now())
   const [closing, setClosing] = useState(false)
-  const [delegating, setDelegating] = useState(false)
   const [abandonQuote, setAbandonQuote] = useState(null) // cost shown before a costly abandon
 
   // Abandon: free inside the 10-minute intake window, otherwise ask first.
@@ -151,11 +140,11 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
       <div className="min-w-0">
         <div
           className={`relative truncate font-tech text-[18px] font-medium leading-tight ${
-            isScrambled ? 'tracking-[0.12em]' : ''
+            ''
           } ${task.done || closing ? 'text-ash' : enraged ? 'text-blood' : 'text-bone'}`}
-          style={mutation ? { color: mutation.color } : isScrambled ? { color: MUTATIONS.riddler.color } : undefined}
+          style={mutation ? { color: mutation.color } : undefined}
         >
-          {displayTitle}
+          {task.title}
           {/* batarang slash */}
           {closing && (
             <motion.span
@@ -171,6 +160,7 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
           <span style={{ color: sector.accent }}>{sector.name.toUpperCase()}</span>
           {rl && <span className="flex items-center gap-1" style={{ color: '#D62516' }}><Repeat className="h-3.5 w-3.5" /> {rl}</span>}
           {isSignal && <span className="flex items-center gap-1 text-gold"><Radio className="h-3.5 w-3.5" /> BAT-SIGNAL ×3</span>}
+          {handedOff && <span className="flex items-center gap-1 text-bone-dim"><UserCheck className="h-3.5 w-3.5" /> WITH {task.assignedTo.toUpperCase()}{task.followUpOn ? ` · CHECK ${task.followUpOn}` : ''}</span>}
           {prepActive && <span className="flex items-center gap-1 text-gold"><Clock className="h-3.5 w-3.5" /> PREP {fmt(task.prepUntil - now)}</span>}
           {enraged && <span className="flex items-center gap-1 text-blood"><Flame className="h-3.5 w-3.5" /> ENRAGED · ×10</span>}
           {locked && !mutation && <span className="text-gold">CRITICALLY OVERDUE · LOCKED</span>}
@@ -222,51 +212,10 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
             {!task.prepInvoked && <IconBtn icon={Clock} onClick={() => requirePrep(task.id, PREP_DEFAULT_MS)} title="Require Prep Time" className="text-ash hover:text-gold" />}
             {!isSignal && canSignal && <IconBtn icon={Radio} onClick={() => setSignal(task.id)} title="Light the Bat-Signal — one per night, locked once lit" className="text-ash hover:text-gold" />}
             <IconBtn icon={Pencil} onClick={() => openContext(task.id)} title="Open dossier" className="text-ash hover:text-acid" />
-            <IconBtn icon={Users} onClick={() => setDelegating((v) => !v)} title="Delegate to the Bat-Family" className={delegating ? 'text-gold' : 'text-ash hover:text-gold'} />
             <IconBtn icon={Trash2} onClick={askAbandon} title={task.prepInvoked ? 'Abandon — Joker Chaos ×10!' : 'Abandon (free for 10 minutes after intake, then it counts as a failure)'} className={task.prepInvoked ? 'text-blood/70 hover:text-blood' : 'text-ash hover:text-blood'} />
           </div>
         )}
 
-        {/* ═══ BAT-FAMILY DELEGATE MENU ═══ */}
-        <AnimatePresence>
-          {delegating && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setDelegating(false)} />
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-                className="glass hud-corners absolute right-0 top-12 z-50 w-60 p-2"
-              >
-                <div className="mb-1.5 px-1 font-display text-[10px] tracking-[0.25em] text-gotham-slate">
-                  // ASSIGN TO NETWORK
-                </div>
-                {SIDEKICKS.map((s) => {
-                  const Icon = SK_ICONS[s.icon] || Bird
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => { assignTaskTo(task.id, s.id); setDelegating(false) }}
-                      className="flex w-full items-center gap-2.5 rounded px-2 py-2 text-left transition hover:bg-bone/5"
-                    >
-                      <span
-                        className="flex h-8 w-8 items-center justify-center rounded-full border-2"
-                        style={{ borderColor: s.color, color: s.color, background: `${s.color}1a` }}
-                      >
-                        <Icon className="h-[18px] w-[18px]" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-display text-[14px] font-semibold text-bone">{s.name}</span>
-                        <span className="block truncate font-mono text-[10px] text-ash">{s.handle}</span>
-                      </span>
-                    </button>
-                  )
-                })}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* ═══ UTILITY BELT · BATARANG SLICE TARGET ═══ */}

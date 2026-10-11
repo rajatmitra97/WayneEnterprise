@@ -225,3 +225,32 @@ The rules of engagement, enforced in `src/store.js` (constants in `src/constants
 - Also fixed: weekly/custom routines were penalised on the wrong night, saving
   a WEEKLY routine in the dossier wiped its weekday, and a focus session
   counted its mission twice.
+
+## Phase 1 — Cut the noise (October 2026)
+
+Thirteen cuts, one intake, one alert channel. Mission Control now opens on
+the Case File, so the next case is on the first screen.
+
+- **Removed:** the Gotham Gazette ad slot and the Sequencer that hid it, The
+  Cell minigame, the 80-second drone, Brooding Mode, the hidden Lazarus pixel
+  (full wipe), the Blackgate Kanban, the fictional sidekick roster and "Adopt a
+  Robin", the duplicate Command Bar and Case File forms, and dead files
+  (`Protagonist`, `BatSccene`, `EditTaskModal`). `index1.html` lives in
+  `/archive`.
+- **The Joker never taxes a completion.** He hits Dispatch slots from last night
+  that still hold an open case (−8 XP each, once).
+- **Mutations feed the weekly boss** (+100 HP each) instead of freezing,
+  scrambling or jump-scaring the UI.
+- **No coins for logging in.** Coins come from closed cases only.
+- **Harvey's Deal replaces the coin flip:** when a 7-night streak breaks, take
+  the scar now, or bet the next night on closing 3 cases (win clean, lose
+  double). Unanswered by the next night, Harvey takes the scar.
+- **The Family:** hand a case to a real person from its dossier, with a
+  follow-up night. It stays in your Case File and is exempt from the overdue
+  lock only until then.
+- **One intake:** the DECRYPT button / Cmd+K console (now with routes like
+  `every mon wed fri` and a `?` field manual) and the Wiretap bar. Raw intel
+  waits in the Case File's INTEL tab until you put it on patrol.
+- **Oracle comms:** one message on screen at a time, priority-ordered, at most
+  6 unsolicited alerts a night; system notifications only for patrol starts
+  and the Signal. Alfred's idle nagging is gone.

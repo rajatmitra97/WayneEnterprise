@@ -128,7 +128,7 @@ export default function BatPanel() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 90, damping: 20 }}
         style={{ rotateX: rotX, rotateY: rotY, transformPerspective: 1200 }}
-        className="glass relative h-80 w-full max-w-4xl overflow-hidden rounded-xl border-white/5"
+        className="glass relative h-56 w-full max-w-4xl overflow-hidden rounded-xl border-white/5 [@media(min-height:860px)]:h-80"
       >
         {/* deep vignette base */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#06060b] to-[#020204]" />

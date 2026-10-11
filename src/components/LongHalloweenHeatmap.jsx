@@ -1,11 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════
    THE LONG HALLOWEEN — a 365-night discipline heatmap.
-   Empty=black · low=dark blue · high=bright cyan · Arkham night=crimson.
-   Break a 7-night streak and Two-Face's coin decides your fate:
-   the clean half forgives, the scarred half robs you blind.
+   Empty=black · low=dark red · high=neon red · Arkham night=crimson glow.
+   (Two-Face's coin used to live here; Harvey's Deal is now app-wide.)
    ═══════════════════════════════════════════════════════════════════ */
-import { useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useMemo, useState } from 'react'
 import { useStore, build365Series } from '../store'
 import { HEATMAP_LEVELS, HEATMAP_ARKHAM } from '../constants'
 import Panel from './Panel'
@@ -26,20 +24,12 @@ function toWeeks(series) {
 
 export default function LongHalloweenHeatmap() {
   const log = useStore((s) => s.completionLog)
-  const pendingTwoFace = useStore((s) => s.pendingTwoFace)
   const series = useMemo(() => build365Series(log), [log])
   const weeks = useMemo(() => toWeeks(series), [series])
 
   const activeDays = series.filter((d) => d.count > 0).length
   const arkhamNights = series.filter((d) => d.arkham > 0).length
   const [hover, setHover] = useState(null)
-
-  // keep the coin overlay mounted through resolution + result, independent of
-  // the store flag (which the toss clears immediately).
-  const [coin, setCoin] = useState(false)
-  useEffect(() => {
-    if (pendingTwoFace) setCoin(true)
-  }, [pendingTwoFace])
 
   return (
     <Panel
@@ -91,80 +81,6 @@ export default function LongHalloweenHeatmap() {
         </div>
       </div>
 
-      <AnimatePresence>{coin && <TwoFaceCoin onClose={() => setCoin(false)} />}</AnimatePresence>
     </Panel>
-  )
-}
-
-function TwoFaceCoin({ onClose }) {
-  const resolve = useStore((s) => s.resolveTwoFace)
-  const [flipping, setFlipping] = useState(false)
-  const [face, setFace] = useState(null) // 'clean' | 'scarred'
-
-  const flip = () => {
-    if (flipping) return
-    setFlipping(true)
-    setTimeout(() => {
-      const clean = resolve() // store decides + applies consequence
-      setFace(clean ? 'clean' : 'scarred')
-      setFlipping(false)
-    }, 1600)
-  }
-
-  return (
-    <motion.div
-      className="fixed inset-0 z-[9200] flex flex-col items-center justify-center p-6"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-    >
-      <div className="absolute inset-0 bg-void/88 backdrop-blur-md" />
-      <motion.div
-        initial={{ scale: 0.8, y: 20 }} animate={{ scale: 1, y: 0 }}
-        className="relative z-10 flex flex-col items-center"
-      >
-        <div className="mb-2 font-display text-[13px] font-semibold tracking-[0.4em] text-chaos">TWO-FACE</div>
-        <p className="mb-6 max-w-sm text-center font-serif text-[17px] italic text-bone">
-          A seven-night streak, shattered. “You make your own luck,” Harvey said. Now the coin will judge you.
-        </p>
-
-        {/* the coin */}
-        <motion.button
-          onClick={flip}
-          disabled={!!face}
-          animate={flipping ? { rotateY: [0, 1800], scale: [1, 1.15, 1] } : {}}
-          transition={{ duration: 1.6, ease: 'easeOut' }}
-          className="relative h-32 w-32 rounded-full"
-          style={{ transformStyle: 'preserve-3d', perspective: 800 }}
-        >
-          <div
-            className="absolute inset-0 flex items-center justify-center rounded-full border-2 font-display text-[40px]"
-            style={{
-              background: face === 'scarred'
-                ? 'radial-gradient(circle at 40% 35%, #5a5a5a, #1a1a1a)'
-                : 'radial-gradient(circle at 40% 35%, #ff8a4d, #8b6f33)',
-              borderColor: face === 'scarred' ? '#8a2be2' : '#D73423',
-              color: face === 'scarred' ? '#8a2be2' : '#05050a',
-              boxShadow: face === 'scarred' ? '0 0 30px -4px #8a2be2' : '0 0 30px -4px #D73423',
-            }}
-          >
-            {face === 'scarred' ? '☠' : face === 'clean' ? '★' : '?'}
-          </div>
-        </motion.button>
-
-        <div className="mt-6 h-10 text-center">
-          {!face ? (
-            <button onClick={flip} disabled={flipping} className="btn-gold disabled:opacity-50">
-              {flipping ? 'THE COIN IS IN THE AIR…' : 'TOSS THE COIN'}
-            </button>
-          ) : (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-3">
-              <p className="font-serif text-[16px] italic" style={{ color: face === 'scarred' ? '#8a2be2' : '#D73423' }}>
-                {face === 'scarred' ? 'The scarred half. Chance has robbed you.' : 'The clean half. You are forgiven — tonight.'}
-              </p>
-              <button onClick={onClose} className="btn-hud">ACCEPT FATE</button>
-            </motion.div>
-          )}
-        </div>
-      </motion.div>
-    </motion.div>
   )
 }

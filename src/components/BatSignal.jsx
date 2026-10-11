@@ -12,7 +12,7 @@ export default function BatSignal() {
     <Panel
       label="XI · The Bat-Signal"
       title={<>The <em className="not-italic font-light text-bone-dim">Signal</em></>}
-      className="col-span-12 lg:col-span-6"
+      className="col-span-12 lg:col-span-4"
     >
       <div className="relative mb-3 flex h-[120px] items-center justify-center overflow-hidden rounded border border-ash-dim/60 bg-gradient-to-b from-[#0a0815] to-[#050308]">
         {task ? (
