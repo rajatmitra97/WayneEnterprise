@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, Save, Check, Trash2 } from 'lucide-react'
-import { useStore } from '../store'
+import { useStore, threatLocked, abandonCost, nightWeekday } from '../store'
 import { SECTORS, SECTOR_ORDER, THREAT, THREAT_ORDER, RECUR, WEEKDAYS_FULL } from '../constants'
 
 export default function ContextPanel() {
@@ -16,6 +16,9 @@ export default function ContextPanel() {
   const update = useStore((s) => s.updateTask)
   const complete = useStore((s) => s.completeTask)
   const remove = useStore((s) => s.deleteTask)
+  // terms are set at intake: threat (and one-off ↔ routine) lock after 10 minutes
+  const locked = useStore((s) => (task ? threatLocked(s, task) : false))
+  const [abandonQuote, setAbandonQuote] = useState(null)
 
   const [title, setTitle] = useState('')
   const [sector, setSector] = useState('body')
@@ -34,12 +37,24 @@ export default function ContextPanel() {
   useEffect(() => {
     if (id && !task) close()
   }, [id, task, close])
+  useEffect(() => setAbandonQuote(null), [id])
+
+  const askAbandon = () => {
+    const cost = abandonCost(useStore.getState(), task)
+    if (!cost || cost.free) { remove(id); close(); return }
+    setAbandonQuote(cost)
+  }
 
   const open = !!task
   const toggleDay = (d) => setDays((ds) => (ds.includes(d) ? ds.filter((x) => x !== d) : [...ds, d].sort()))
   const save = () => {
     if (!title.trim()) return
-    update(id, { title: title.trim(), sector, threat, recur, days: recur === RECUR.CUSTOM ? days : [] })
+    // WEEKLY keeps its anchor weekday (wiping it meant the route never re-armed)
+    const nextDays =
+      recur === RECUR.CUSTOM ? days
+      : recur === RECUR.WEEKLY ? (task.recur === RECUR.WEEKLY && task.days?.length ? task.days : [nightWeekday()])
+      : []
+    update(id, { title: title.trim(), sector, threat, recur, days: nextDays })
     close()
   }
 
@@ -75,8 +90,10 @@ export default function ContextPanel() {
             {SECTOR_ORDER.map((k) => <option key={k} value={k}>{SECTORS[k].name}</option>)}
           </select>
 
-          <label className="mb-1 block font-display text-[10px] tracking-[0.25em] text-ash">THREAT LEVEL</label>
-          <select value={threat} onChange={(e) => setThreat(e.target.value)} className="field mb-4 w-full">
+          <label className="mb-1 block font-display text-[10px] tracking-[0.25em] text-ash">
+            THREAT LEVEL{locked && <span className="text-blood"> · LOCKED AT INTAKE</span>}
+          </label>
+          <select value={threat} onChange={(e) => setThreat(e.target.value)} disabled={locked} title={locked ? 'Threat is set at intake. It locks 10 minutes after commit, or once scheduled or signalled.' : undefined} className={`field mb-4 w-full ${locked ? 'cursor-not-allowed opacity-60' : ''}`}>
             {THREAT_ORDER.map((k) => <option key={k} value={k}>{THREAT[k].label}</option>)}
           </select>
 
@@ -99,7 +116,19 @@ export default function ContextPanel() {
           <div className="mt-5 space-y-2">
             <button onClick={save} className="btn-gold flex w-full items-center justify-center gap-2"><Save className="h-5 w-5" /> SAVE CHANGES</button>
             <button onClick={() => { complete(id); close() }} className="flex w-full items-center justify-center gap-2 border border-acid/50 py-2 font-display text-[13px] tracking-[0.12em] text-acid transition hover:bg-acid/10"><Check className="h-5 w-5" /> CLOSE THE CASE</button>
-            <button onClick={() => { remove(id); close() }} className="flex w-full items-center justify-center gap-2 border border-blood-dim py-2 font-display text-[13px] tracking-[0.12em] text-blood/80 transition hover:bg-blood/10"><Trash2 className="h-5 w-5" /> ABANDON</button>
+            {abandonQuote ? (
+              <div className="border border-blood/60 bg-blood/10 p-2.5">
+                <div className="mb-2 font-display text-[12px] font-semibold tracking-[0.08em] text-blood">
+                  ABANDON COUNTS AS A FAILURE: −{abandonQuote.xp} XP{abandonQuote.coins ? ` · −${abandonQuote.coins} WC` : ''}, STREAK RESETS
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { remove(id); close() }} className="flex-1 bg-blood py-1.5 font-display text-[12px] font-semibold tracking-[0.12em] text-bone">CONFIRM</button>
+                  <button onClick={() => setAbandonQuote(null)} className="flex-1 border border-rule py-1.5 font-display text-[12px] tracking-[0.12em] text-ash hover:text-bone">KEEP THE CASE</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={askAbandon} className="flex w-full items-center justify-center gap-2 border border-blood-dim py-2 font-display text-[13px] tracking-[0.12em] text-blood/80 transition hover:bg-blood/10"><Trash2 className="h-5 w-5" /> ABANDON</button>
+            )}
           </div>
         </motion.aside>
       )}

@@ -37,14 +37,14 @@ export default function BatSignal() {
         <>
           <div className="mb-1 font-serif text-[16px] italic leading-snug text-gold">{task.title}</div>
           <div className="font-display text-[10px] uppercase tracking-[0.25em] text-ash">
-            {SECTORS[task.sector]?.name} · {THREAT[task.threat].tag} · 3× XP
+            {SECTORS[task.sector]?.name} · {THREAT[task.threat].tag} · 3× XP · LOCKED UNTIL DAWN
           </div>
         </>
       ) : (
         <>
           <div className="mb-1 font-serif text-[15px] italic text-ash-dim">no priority target.</div>
           <div className="font-display text-[10px] tracking-[0.25em] text-ash">
-            LIGHT THE SIGNAL FROM ANY CASE
+            ONE PER NIGHT · HIGH OR ARKHAM CASES · UNANSWERED = 2× PENALTY
           </div>
         </>
       )}

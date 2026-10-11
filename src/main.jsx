@@ -9,10 +9,58 @@ import './index.css'
    hatch) instead of a blank white page. Also guards against a corrupt
    localStorage save crashing the boot.
    ═══════════════════════════════════════════════════════════════════ */
+const SAVE_KEY = 'wayneOSv3'
+const CRASH_KEY = 'wayneOSv3-crashbackup'
+
+// Read the raw save without going through the (possibly broken) store.
+function readRawSave() {
+  try {
+    return localStorage.getItem(SAVE_KEY)
+  } catch (e) {
+    return null
+  }
+}
+
+function downloadRawSave() {
+  const raw = readRawSave()
+  if (!raw) return false
+  let state = null
+  try {
+    const parsed = JSON.parse(raw)
+    state = parsed && parsed.state ? parsed.state : parsed
+  } catch (e) {
+    state = null
+  }
+  // a readable save is wrapped like a normal export; an unreadable one is saved verbatim
+  const text = state
+    ? JSON.stringify({ _signature: 'WAYNE-OS-DKP', exportedAt: new Date().toISOString(), data: state }, null, 2)
+    : raw
+  const blob = new Blob([text], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `wayne-os-crash-save-${Date.now()}.json`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  return true
+}
+
+const btn = (bg, fg, border) => ({
+  background: bg,
+  color: fg,
+  border: border || 'none',
+  padding: '10px 18px',
+  fontFamily: 'monospace',
+  letterSpacing: '0.18em',
+  cursor: 'pointer',
+})
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { error: null }
+    this.state = { error: null, saved: false, confirmPurge: false }
   }
   static getDerivedStateFromError(error) {
     return { error }
@@ -21,9 +69,15 @@ class ErrorBoundary extends React.Component {
     // surfaced in the deployed console for diagnostics
     console.error('WAYNE OS // render fault:', error, info)
   }
-  hardReset = () => {
+  download = () => {
+    if (downloadRawSave()) this.setState({ saved: true })
+  }
+  purge = () => {
+    // even a purge keeps one copy aside in this browser
     try {
-      localStorage.removeItem('wayneOSv3')
+      const raw = readRawSave()
+      if (raw) localStorage.setItem(CRASH_KEY, raw)
+      localStorage.removeItem(SAVE_KEY)
     } catch (e) {
       /* ignore */
     }
@@ -31,6 +85,7 @@ class ErrorBoundary extends React.Component {
   }
   render() {
     if (this.state.error) {
+      const hasSave = !!readRawSave()
       return (
         <div
           style={{
@@ -47,12 +102,8 @@ class ErrorBoundary extends React.Component {
             textAlign: 'center',
           }}
         >
-          <div style={{ color: '#D62516', letterSpacing: '0.3em', fontSize: 13 }}>
-            ⚠ BATCOMPUTER FAULT
-          </div>
-          <div style={{ fontSize: 20, maxWidth: 640 }}>
-            A subsystem failed to initialise.
-          </div>
+          <div style={{ color: '#D62516', letterSpacing: '0.3em', fontSize: 13 }}>⚠ BATCOMPUTER FAULT</div>
+          <div style={{ fontSize: 20, maxWidth: 640 }}>A subsystem failed to initialise.</div>
           <pre
             style={{
               maxWidth: 720,
@@ -67,20 +118,28 @@ class ErrorBoundary extends React.Component {
           >
             {String(this.state.error?.message || this.state.error)}
           </pre>
-          <button
-            onClick={this.hardReset}
-            style={{
-              background: '#D73423',
-              color: '#060303',
-              border: 'none',
-              padding: '10px 18px',
-              fontFamily: 'monospace',
-              letterSpacing: '0.18em',
-              cursor: 'pointer',
-            }}
-          >
-            PURGE LOCAL SAVE & REBOOT
-          </button>
+          <div style={{ fontSize: 13, maxWidth: 560, color: '#cf9a92' }}>
+            Your record is still in this browser. Download it first, then try reloading.
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {hasSave && (
+              <button onClick={this.download} style={btn('#D73423', '#060303')}>
+                {this.state.saved ? 'SAVE DOWNLOADED ✓' : 'DOWNLOAD MY SAVE'}
+              </button>
+            )}
+            <button onClick={() => location.reload()} style={btn('transparent', '#f2dad6', '1px solid #5a100b')}>
+              RELOAD
+            </button>
+            {!this.state.confirmPurge ? (
+              <button onClick={() => this.setState({ confirmPurge: true })} style={btn('transparent', '#9c5248', '1px solid #3a0a07')}>
+                PURGE LOCAL SAVE…
+              </button>
+            ) : (
+              <button onClick={this.purge} style={btn('#450808', '#f2dad6', '1px solid #D62516')}>
+                {this.state.saved || !hasSave ? 'CONFIRM PURGE & REBOOT' : 'PURGE WITHOUT DOWNLOADING?'}
+              </button>
+            )}
+          </div>
         </div>
       )
     }

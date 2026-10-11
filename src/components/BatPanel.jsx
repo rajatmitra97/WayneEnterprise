@@ -135,19 +135,19 @@ export default function BatPanel() {
 
         {/* Empire: full-frame cover backdrop (slight overscan for parallax). */}
         <ParallaxLayer
-          src={asset(`assets/empire/level-${empireLevel}.jpg`)}
+          src={asset(`assets/empire/level-${empireLevel}.webp`)}
           level={empireLevel} x={bgX} y={bgY} scale={1.12} z={0}
           label="EMPIRE" accent="#D73423" slideFrom={40} fit="cover"
         />
         {/* Machine: contained, floor-anchored so the vehicle fits, backdrop visible. */}
         <ParallaxLayer
-          src={asset(`assets/machine/level-${machineLevel}.png`)}
+          src={asset(`assets/machine/level-${machineLevel}.webp`)}
           level={machineLevel} x={midX} y={midY} scale={1.0} z={10}
           label="MACHINE" accent="#c0392b" slideFrom={70} fit="contain"
         />
         {/* Body: contained foreground hero, fits fully within the panel. */}
         <ParallaxLayer
-          src={asset(`assets/body/level-${bodyLevel}.png`)}
+          src={asset(`assets/body/level-${bodyLevel}.webp`)}
           level={bodyLevel} x={fgX} y={fgY} scale={1.02} z={20}
           label="BODY" accent="#D62516" slideFrom={100} fit="contain"
         />

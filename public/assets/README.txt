@@ -1,34 +1,31 @@
 WAYNE OS // BatPanel composite assets
 ======================================
 
-Drop your 15 generated images here, using this EXACT structure and naming.
+Drop your 15 images here, using this EXACT structure and naming.
 The BatPanel reads the user's tier (1–5) per sector and loads the matching file.
 Until a file exists, the panel shows a labelled gradient fallback (no broken images).
 
+FORMAT: WebP, sized for the screen (max ~1600 px wide). The originals that
+used to live here (22 MB of PNG/JPG) are kept in /art-source/ at the project
+root, outside the build. To convert a new image:
+  python -c "from PIL import Image; im=Image.open('in.png'); im.thumbnail((1600,1600)); im.save('level-1.webp','WEBP',quality=80,method=6)"
+
 public/assets/
   empire/        (Layer 1 · background · Wealth/Admin)
-    level-1.jpg
-    level-2.jpg
-    level-3.jpg
-    level-4.jpg
-    level-5.jpg
-  machine/       (Layer 2 · midground · Tech/Tools — PNG with transparency)
-    level-1.png
-    level-2.png
-    level-3.png
-    level-4.png
-    level-5.png
-  body/          (Layer 3 · foreground · Fitness/Mind — PNG with transparency)
-    level-1.png
-    level-2.png
-    level-3.png
-    level-4.png
-    level-5.png
+    level-1.webp   alley            (art-source/empire/Level-5 (2).jpg)
+    level-2.webp   workshop         (art-source/empire/Level-5 (6).jpg)
+    level-3.webp   command center   (art-source/empire/Level-5 (7).jpg)
+    level-4.webp   cave HQ          (art-source/empire/Level-5 (8).jpg)
+    level-5.webp   the tower        (art-source/empire/Level-5 (9).jpg)
+  machine/       (Layer 2 · midground · Tech/Tools — WebP with transparency)
+    level-1.webp … level-5.webp
+  body/          (Layer 3 · foreground · Fitness/Mind — WebP with transparency)
+    level-1.webp … level-5.webp
 
 Intro sequence
 --------------
-  public/assets/batman-head.png   (the Cortical Sync cowl)
-- A high-res PNG of Batman's head/cowl, ideally transparent background,
+  public/assets/batman-head.webp   (the Cortical Sync cowl)
+- A high-res image of Batman's head/cowl, ideally transparent background,
   roughly square or portrait. The intro zooms into the eye line (~40% from
   top), so center the cowl horizontally with the eyes a little above middle.
 - If absent, IntroSequence renders a vector cowl fallback automatically.
@@ -58,8 +55,8 @@ V9 art (all optional — vector/styled fallbacks render until added)
 
 Notes
 -----
-- Empire is a JPG (full-frame background). Machine and Body are PNGs so their
-  transparent areas let the layers behind show through for the parallax depth.
+- Empire is a full-frame background. Machine and Body keep their transparency
+  (WebP supports alpha) so the layers behind show through for the parallax depth.
 - Tiers map from sector mastery: tier = floor(level / 6) + 1, clamped to 1–5.
     Empire  = average of Wealth + Allies levels
     Machine = Project (the Batmobile build) level

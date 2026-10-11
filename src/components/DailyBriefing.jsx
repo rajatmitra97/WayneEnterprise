@@ -5,7 +5,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useStore, sortByThreat, todayKey } from '../store'
+import { useStore, sortByThreat, todayKey, shiftKey } from '../store'
 import { DAILY_LOGIN_BONUS, ALFRED_BRIEF_OPEN, THREAT } from '../constants'
 
 const asset = (p) => `${import.meta.env.BASE_URL}${p}`
@@ -24,8 +24,7 @@ export default function DailyBriefing() {
 
   // yesterday's output + today's priority
   const { yesterdayCount, priority, greeting } = useMemo(() => {
-    const y = new Date(); y.setDate(y.getDate() - 1)
-    const yKey = y.toISOString().slice(0, 10)
+    const yKey = shiftKey(todayKey(), -1) // last night, local
     const yEntry = log.find((d) => d.date === yKey)
     const top = sortByThreat(tasks.filter((t) => !t.done && !t.assignedTo))[0]
     return { yesterdayCount: yEntry?.count || 0, priority: top, greeting: pick(ALFRED_BRIEF_OPEN) }

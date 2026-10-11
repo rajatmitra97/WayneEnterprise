@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
-import { useStore, selectActiveMutations } from './store'
+import { useStore, selectActiveMutations, todayKey, getNightEndsHour } from './store'
 import { ALFRED, BROODING_IDLE_MS, SCARECROW_INTERVAL_MS } from './constants'
 import IntroSequence from './components/IntroSequence'
 import TopBar from './components/TopBar'
@@ -69,7 +69,7 @@ export default function App() {
   const [glitch, setGlitch] = useState(false) // cowl-swap screen glitch
   const [showInterro, setShowInterro] = useState(false) // Arkham Interrogation
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayKey() // the current NIGHT (local, ends at the night boundary)
   const failsToday = useMemo(
     () => closedTasks.filter((t) => t.failed && t.closedDate === today).length,
     [closedTasks, today]
@@ -185,9 +185,12 @@ export default function App() {
   useEffect(() => {
     const check = () => {
       const now = new Date()
+      // from 23:30 until the night ends (e.g. 04:00) — after midnight it is
+      // still the same night, so the reckoning still applies
       const past =
         now.getHours() > INTERROGATION_HOUR ||
-        (now.getHours() === INTERROGATION_HOUR && now.getMinutes() >= INTERROGATION_MIN)
+        (now.getHours() === INTERROGATION_HOUR && now.getMinutes() >= INTERROGATION_MIN) ||
+        now.getHours() < getNightEndsHour()
       if (past && lastInterrogation !== today && failsToday > 0) setShowInterro(true)
     }
     check()
