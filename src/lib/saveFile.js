@@ -4,7 +4,7 @@
    against the defaults, and summarised so the user can confirm before
    anything is replaced. Pure functions, no store access.
    ═══════════════════════════════════════════════════════════════════ */
-import { SECTORS, SECTOR_ORDER, THREAT, LEVELS_PER_SECTOR } from '../constants'
+import { SECTORS, SECTOR_ORDER, THREAT, LEVELS_PER_SECTOR, LEGACY_SIDEKICK_NAMES } from '../constants'
 
 export const SAVE_SIGNATURE = 'WAYNE-OS-DKP'
 
@@ -73,7 +73,12 @@ export function normalizeState(input, defaults) {
   data.coins = finite(data.coins) ? Math.max(0, Math.round(data.coins)) : 0
 
   const tasks = Array.isArray(src.tasks) ? src.tasks : []
-  data.tasks = tasks.filter(validTask)
+  data.tasks = tasks.filter(validTask).map((t) => {
+    // v1 → v2: cases "delegated" to the retired fictional roster keep a name
+    if (t.assignedTo && LEGACY_SIDEKICK_NAMES[t.assignedTo])
+      return { ...t, assignedTo: LEGACY_SIDEKICK_NAMES[t.assignedTo], followUpOn: t.followUpOn || null }
+    return t
+  })
   const droppedTasks = tasks.length - data.tasks.length
   if (droppedTasks) warnings.push(`${droppedTasks} damaged open case(s) skipped`)
 
@@ -84,6 +89,9 @@ export function normalizeState(input, defaults) {
   )
   // an in-flight focus session would be punished as "broken" on load
   data.focus = null
+  // v1 → v2: a pending Two-Face coin toss becomes an offer of Harvey's Deal
+  if (src.pendingTwoFace === true && 'harveyDeal' in defaults && !data.harveyDeal)
+    data.harveyDeal = { state: 'offered', offeredOn: defaults.lastSeen, sector: 'mind' }
   return { data, warnings, droppedTasks }
 }
 

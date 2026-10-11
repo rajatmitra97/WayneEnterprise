@@ -274,20 +274,12 @@ export const ALFRED = {
     'Excuse me, Master Wayne. A priority target requires your immediate attention.',
     'The signal is lit, sir. I have laid out the cowl.',
   ],
-  idle: [
-    'Master Bruce, the equipment gathers dust. As do you.',
-    'I took the liberty of brewing tea three hours ago, sir. It is cold now.',
-    'Procrastination, sir, is the only criminal you have never caught.',
-  ],
   done: [
     'Well struck, sir. I shall log it in the case file.',
     'One less, Master Wayne. Gotham notices, even if it never thanks you.',
   ],
   arkham: [
     'Sir — an Arkham-level threat is loose in your case file. I would not sleep on it.',
-  ],
-  chaos: [
-    'The Joker has tampered with your winnings, sir. I did warn you about the coins.',
   ],
   fail: [
     'It pains me to report it, sir: a mission has failed. The Waynes did not raise a quitter.',
@@ -309,11 +301,6 @@ export const ALFRED = {
     'Down to the cave, then. The city will not save itself.',
   ],
 }
-
-// Joker chaos: chance, on completion, to lose part of the reward — unless
-// the user pays Wayne Coins for protection.
-export const JOKER_CHANCE = 0.14
-export const JOKER_SHIELD_COST = 3
 
 /* ═══════════════════════════════════════════════════════════════════
    COWL TOGGLE — Contextual Duality. Two identities, two schedules.
@@ -420,10 +407,6 @@ export const CONTINGENCY_TEMPLATES = [
   },
 ]
 
-// Lucius Fox R&D — the Wayne Coin sink. Buy your own progression.
-export const RND_STAGES = ['idea', 'active', 'deployable']
-export const RND_STAGE_COST = { idea: 0, active: 40, deployable: 120 }
-
 // Batsuit Telemetry — biometric-adaptive difficulty.
 export const BACTA_SLEEP_THRESHOLD = 5 // hours
 export const BACTA_SORENESS_THRESHOLD = 7 // 1–10
@@ -451,10 +434,6 @@ export const JOKER_CHAOS_XP = 8
 export const JOKER_CHAOS_COINS = 3
 export const PREP_PENALTY_MULT = 10
 
-// Adopt a Robin — delegation toast (Directive 3).
-export const ROBIN_TOAST =
-  'Task delegated to an underaged sidekick in bright colors. Tactically questionable. Task cleared.'
-
 /* ═══════════════════════════════════════════════════════════════════
    BILLIONAIRE PLAYBOY ALIBIS — issued to the press to bury a failure.
    ═══════════════════════════════════════════════════════════════════ */
@@ -467,19 +446,6 @@ export const ALIBIS = [
   'Accidentally funded an opera, then had to attend the entire opera.',
   'Mistook a board meeting for a wine tasting. Regret nothing.',
   'Was photographed asleep in a fountain outside the Iceberg Lounge. As one is.',
-]
-
-/* ═══════════════════════════════════════════════════════════════════
-   BROODING MODE — the edgelord idle monologue. Pure cringe, on purpose.
-   ═══════════════════════════════════════════════════════════════════ */
-export const BROODING_IDLE_MS = 3 * 60 * 1000 // 3 minutes
-export const BROODING_QUOTES = [
-  'Gotham is a diseased animal... and I have been staring at a blank screen for three minutes.',
-  'They thought the dark was their ally. They merely adopted the dark. I was born into a tab left open.',
-  'Criminals are a superstitious, cowardly lot. So is my motivation, apparently.',
-  'I am vengeance. I am the night. I am... extremely idle right now.',
-  'It is not who I am underneath, but what I do, that defines me. I have done nothing for 180 seconds.',
-  'The rain washes the filth from the streets. It cannot wash away an unfinished case file.',
 ]
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -567,13 +533,14 @@ export const HEATMAP_LEVELS = [
 ]
 export const HEATMAP_ARKHAM = '#ff2b2b' // an Arkham-level night — glowing red
 
-// ── Two-Face — the coin toss when a 7-day streak shatters ──────────────
+// ── Harvey's Deal — offered when a 7-night streak shatters ─────────────
+// No coin flip: a choice. Take the scar now, or bet the next night on it.
 export const TWOFACE_STREAK = 7
-export const TWOFACE = {
-  cleanText: 'The clean half landed up. Harvey forgives you tonight. Your record stands.',
-  scarredText: 'The scarred half. Chance is the only fair judge — and it just robbed you blind.',
-  scarredXp: 30,
-  scarredCoins: 12,
+export const HARVEY_DEAL = {
+  scarXp: 30, // take the scar now
+  scarCoins: 12,
+  target: 3, // double or nothing: close this many cases the next night…
+  // …win and walk away clean; miss and pay double the scar
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -610,44 +577,41 @@ export const ORACLE_OVERRIDE = [
 ]
 
 /* ═══════════════════════════════════════════════════════════════════
-   THE BAT-FAMILY NETWORK — delegation roster.
-   icon = lucide-react component name (resolved in SidekickRoster.jsx).
+   THE FAMILY — real hand-offs. A case handed to a real person stays in
+   your Case File until you confirm it's done; it's exempt from the
+   overdue lock only until its follow-up night.
    ═══════════════════════════════════════════════════════════════════ */
-export const SIDEKICKS = [
-  { id: 'nightwing', name: 'Nightwing', handle: 'DICK GRAYSON', color: '#2f6df6', icon: 'Bird', line: 'On it. Acrobatics included, free of charge.' },
-  { id: 'batgirl', name: 'Batgirl', handle: 'BARBARA / CASS', color: '#7d2ff6', icon: 'Sparkles', line: 'Consider it handled — quietly.' },
-  { id: 'redhood', name: 'Red Hood', handle: 'JASON TODD', color: '#d11f1f', icon: 'Skull', line: 'Fine. My way, though.' },
-  { id: 'robin', name: 'Robin', handle: 'DAMIAN WAYNE', color: '#21a83a', icon: 'Bird', line: 'Tt. Trivial. It is as good as done.' },
-  { id: 'oracle', name: 'Oracle', handle: 'THE NETWORK', color: '#1fb6b6', icon: 'Radio', line: 'Routed and logged. I see everything.' },
-]
-export const SIDEKICK_BY_ID = Object.fromEntries(SIDEKICKS.map((s) => [s.id, s]))
+export const HANDOFF_DEFAULT_NIGHTS = 2
+// Names the retired fictional roster used, for migrating old saves.
+export const LEGACY_SIDEKICK_NAMES = {
+  nightwing: 'Nightwing', batgirl: 'Batgirl', redhood: 'Red Hood', robin: 'Robin', oracle: 'Oracle',
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    THE ARKHAM MUTATION PROTOCOL — overdue cases metastasise into Rogues.
-   A case left >24h overdue mutates and applies a live OS-wide debuff
-   until it is defeated (completed).
+   A case left >24h overdue mutates and FEEDS the weekly boss (more HP).
+   Penalties cost the city, never the tool: no UI debuffs.
    ═══════════════════════════════════════════════════════════════════ */
 export const MUTATION_AGE_MS = 24 * 60 * 60 * 1000 // 24h overdue → mutation
 export const MUTATIONS = {
   freeze: {
     id: 'freeze', rogue: 'Mr. Freeze', color: '#7ad7ff', cls: 'mutate-freeze',
-    debuff: 'CRYO-FIELD: all motion slowed 3×.',
+    debuff: 'feeds the weekly boss',
     taunt: 'You left it to rot — now everything freezes. Tonight, revenge is best served cold.',
   },
   riddler: {
     id: 'riddler', rogue: 'The Riddler', color: '#39ff14', cls: 'mutate-riddler',
-    debuff: 'CIPHER: three backlog titles scrambled.',
+    debuff: 'feeds the weekly boss',
     taunt: 'Riddle me this: what rots if ignored and scrambles your mind? This case.',
   },
   scarecrow: {
     id: 'scarecrow', rogue: 'Scarecrow', color: '#c9a73a', cls: 'mutate-scarecrow',
-    debuff: 'FEAR-TOXIN: jump-scares every 2 min.',
+    debuff: 'feeds the weekly boss',
     taunt: 'Your procrastination smells of fear. Let me amplify it.',
   },
 }
 export const MUTATION_IDS = ['freeze', 'riddler', 'scarecrow']
-export const SCARECROW_INTERVAL_MS = 2 * 60 * 1000 // jump-scare cadence
-export const SCRAMBLE_CHARS = '?@#$%&!§¿※†‡▓░▒'
+export const MUTATION_BOSS_HP = 100 // each mutation adds this much to the weekly boss
 
 /* ═══════════════════════════════════════════════════════════════════
    V7 // THE GOTHAM PARADIGM
@@ -661,11 +625,9 @@ export const TABS = [
   { id: 'cave', label: 'The Cave', sub: 'ARMORY · R&D', icon: 'Mountain' },
   { id: 'batcomputer', label: 'Batcomputer', sub: 'ANALYTICS · JOURNAL', icon: 'Cpu' },
   { id: 'arkham', label: 'Arkham', sub: 'ROGUE BOSSES', icon: 'Skull' },
-  { id: 'cell', label: 'The Cell', sub: 'INTERROGATION', icon: 'Lock' },
 ]
 
 // ── Daily Alfred Briefing ────────────────────────────────────────────
-export const DAILY_LOGIN_BONUS = 50 // Wayne Coins for showing up
 export const ALFRED_BRIEF_OPEN = [
   'Good evening, sir. The cave kept your seat warm.',
   'Welcome back, Master Wayne. Gotham noticed your absence — it always does.',
@@ -739,50 +701,31 @@ export const CATEGORY_ANCHORS = {
    V9 // THE ARKHAM INTERROGATION PROTOCOL
    ═══════════════════════════════════════════════════════════════════ */
 
-// ── Utility Belt drag-tools (Directive 2) ────────────────────────────
+// ── Utility Belt drag-tools ──────────────────────────────────────────
 export const GADGET_TOOLS = {
   batarang: { verb: 'SLICE', target: 'pending low-threat case → instant COMPLETE', color: '#D62516' },
   smoke: { verb: 'VANISH', target: 'a FAILED case → forgive, reset to PENDING', color: '#9c5248' },
-  optics: { verb: 'SEQUENCE', target: 'the Gazette ad → hack & hide for 4 hours', color: '#D73423' },
 }
-export const AD_HACK_HOURS = 4
 
-// ── Immersive ad header (Directive 5) ────────────────────────────────
-export const GAZETTE_HEADERS = [
-  '// INTERCEPTED BROADCAST: WAYNE ENTERPRISES SPONSOR NETWORK',
-  '// GOTHAM GAZETTE CLASSIFIEDS',
-  '// GCPD PUBLIC FREQUENCY — UNVERIFIED SIGNAL',
-]
+// ── The Joker — commitments left untouched past their window ─────────
+// A Dispatch slot from last night that still holds an open case at
+// rollover costs this toll. He never touches a completion.
+export const JOKER_TOLL_XP = 8
 
-// ── Arkham Cell minigame (Directive 10) ──────────────────────────────
-// 3 PNG states per villain: okay → hurt → plastered.
-export const CELL_VILLAINS = [
-  { id: 'riddler', name: 'The Riddler', color: '#39ff14',
-    states: { okay: 'assets/villains/riddler-okay.png', hurt: 'assets/villains/riddler-hurt.png', plastered: 'assets/villains/riddler-plastered.png' } },
-  { id: 'joker', name: 'The Joker', color: '#8a2be2',
-    states: { okay: 'assets/villains/joker-okay.png', hurt: 'assets/villains/joker-hurt.png', plastered: 'assets/villains/joker-plastered.png' } },
-  { id: 'bane', name: 'Bane', color: '#b8341c',
-    states: { okay: 'assets/villains/bane-okay.png', hurt: 'assets/villains/bane-hurt.png', plastered: 'assets/villains/bane-plastered.png' } },
-]
-export const CELL_BREAK_CLICKS = 10
-// Humorous reactions while being interrogated (random per click).
-export const CELL_TAUNTS = [
-  'Ow! Is that all you—OW!',
-  'You call that an interrogation?',
-  'The Bat is getting SOFT— ouch!',
-  'I know things! Important things! Stop—',
-  'My lawyer will hear about this!',
-  'Theatricality! Deception! ...pain!',
-  'HAHAHA— okay that one hurt.',
-]
-// Hidden Wayne OS tips, revealed when a Rogue breaks.
-export const CELL_TIPS = [
-  "Alright, ALRIGHT! Hover a task and press 'T' to schedule it for today! Now leave me alone!",
-  'Fine! Drag the Batarang from your belt onto a small task to slice it done instantly!',
-  'I confess! The Smoke Pellet resets a FAILED routine slot back to pending. Forgiveness! Ow!',
-  'Cmd/Ctrl + Shift + B swaps Bruce and Batman. I TOLD you, stop hitting me!',
-  'Cmd/Ctrl + K opens the Command Console. Now untie me!',
-  'The Detective Board is for PLANNING — drag sub-tasks into the routine to EXECUTE. Please!',
-  'Complete a Core Task only by scheduling it in Dispatch. That is the rule! AAAGH!',
-  'The Lazarus Pit revives a dead case — for a price. Now I have said too much!',
+// ── Oracle comms — one channel for everything the OS says ─────────────
+// Unsolicited alerts (anything you didn't just cause) are capped per night.
+export const ALERT_CAP_PER_NIGHT = 6
+export const TOAST_MS = 4500
+
+// ── Command Console field manual (the old Arkham Cell tips, minus the cell)
+export const CONSOLE_TIPS = [
+  ['#body #mind #wealth #allies #soul #machine', 'file the case under a sector'],
+  ['!low !medium !high !arkham', 'set the threat level'],
+  ['tonight · tomorrow', 'schedule the night it belongs to'],
+  ['daily · weekly · every mon wed fri', 'make it a patrol route'],
+  ['!prep', 'require 15 minutes of Prep Time (abandoning it after costs ×10)'],
+  ['T over a case', 'drop it into the next free slot tonight'],
+  ['Ctrl/Cmd + Shift + B', 'swap Bruce Wayne and the Batman'],
+  ['Detective Board', 'plan cores and sub-tasks; drag a sub-task into the routine to execute it'],
+  ['Lazarus Pit (The Cave)', 'revive a failed case for 150 WC; the green scar stays'],
 ]

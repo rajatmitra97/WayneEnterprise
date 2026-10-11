@@ -2,8 +2,8 @@
    WAYNE OS // THE DARK KNIGHT PROTOCOL  ·  global state
    Zustand + persist middleware. localStorage key: 'wayneOSv3'.
    Owns: persistence, XP/levels, Wayne Coins, threat-sorted tasks,
-   patrol-route regeneration at midnight, 30-day history log,
-   Joker chaos, Bat-Signal, and the Alfred notification queue.
+   patrol-route regeneration at the night boundary, history log,
+   the Bat-Signal, and Oracle comms (the single alert queue).
    ═══════════════════════════════════════════════════════════════════ */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -15,8 +15,6 @@ import {
   THREAT,
   RECUR,
   xpForLevel,
-  JOKER_CHANCE,
-  JOKER_SHIELD_COST,
   ALFRED,
   FOCUS_BOUNTY_XP,
   FOCUS_BOUNTY_COINS,
@@ -24,31 +22,25 @@ import {
   FOCUS_BREAK_COIN_PENALTY,
   FOCUS_DEFAULT_MS,
   ROGUE_ORDER,
-  RND_STAGES,
-  RND_STAGE_COST,
   BACTA_SLEEP_THRESHOLD,
   BACTA_SORENESS_THRESHOLD,
   PREP_DEFAULT_MS,
   JOKER_CHAOS_XP,
   JOKER_CHAOS_COINS,
   PREP_PENALTY_MULT,
-  ROBIN_TOAST,
   levelToTier,
   SECTOR_TOKENS,
   THREAT_TOKENS,
   SCHEDULE_TOKENS,
   RECUR_TOKENS,
   TWOFACE_STREAK,
-  TWOFACE,
   ORACLE_OVERRIDE,
-  SIDEKICK_BY_ID,
   MUTATION_AGE_MS,
   MUTATION_IDS,
   MUTATIONS,
   BOSSES,
   BOSS_DAMAGE,
   BOSS_BUFF_STEP,
-  DAILY_LOGIN_BONUS,
   LAZARUS_REVIVE_COST,
   RESEARCH_PROJECTS,
   RESEARCH_HOURS,
@@ -57,6 +49,11 @@ import {
   INTAKE_GRACE_MS,
   SIGNAL_THREATS,
   SIGNAL_MISS_MULT,
+  HARVEY_DEAL,
+  MUTATION_BOSS_HP,
+  JOKER_TOLL_XP,
+  ALERT_CAP_PER_NIGHT,
+  HANDOFF_DEFAULT_NIGHTS,
 } from './constants'
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -111,7 +108,7 @@ const freshBoss = (prevId) => {
           schedule:1, recur:'DAILY' }
    ═══════════════════════════════════════════════════════════════════ */
 export function parseIntel(raw) {
-  const out = { sector: null, threat: null, schedule: null, recur: null, prep: false }
+  const out = { sector: null, threat: null, schedule: null, recur: null, days: [], prep: false }
   let text = ` ${raw} `
 
   // #sector
@@ -128,6 +125,22 @@ export function parseIntel(raw) {
     if (t) { out.threat = t; return ' ' }
     return m
   })
+  // "every …" — every day / every week / every weekday / every mon wed fri
+  const DAY_WORDS = { sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tues: 2, tuesday: 2, wed: 3, wednesday: 3, thu: 4, thur: 4, thurs: 4, thursday: 4, fri: 5, friday: 5, sat: 6, saturday: 6 }
+  text = text.replace(/\bevery\s+((?:(?:sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?:day|nesday|sday|urday|rsday)?|weekdays?|weekends?|week|day)(?:[\s,]+(?:and\s+)?(?:(?:sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?:day|nesday|sday|urday|rsday)?))*)/i, (m, list) => {
+    const words = list.toLowerCase().split(/[\s,]+/).filter((w) => w && w !== 'and')
+    if (words[0] === 'day') out.recur = RECUR.DAILY
+    else if (words[0] === 'week') out.recur = RECUR.WEEKLY
+    else if (words[0].startsWith('weekday')) { out.recur = RECUR.CUSTOM; out.days = [1, 2, 3, 4, 5] }
+    else if (words[0].startsWith('weekend')) { out.recur = RECUR.CUSTOM; out.days = [0, 6] }
+    else {
+      const days = Array.from(new Set(words.map((w) => DAY_WORDS[w]).filter((d) => d !== undefined))).sort()
+      if (days.length === 0) return m
+      out.recur = RECUR.CUSTOM
+      out.days = days
+    }
+    return ' '
+  })
   // bare schedule / recurrence keywords
   Object.keys(SCHEDULE_TOKENS).forEach((kw) => {
     const re = new RegExp(`\\b${kw}\\b`, 'i')
@@ -135,7 +148,7 @@ export function parseIntel(raw) {
   })
   Object.keys(RECUR_TOKENS).forEach((kw) => {
     const re = new RegExp(`\\b${kw}\\b`, 'i')
-    if (re.test(text)) { out.recur = RECUR_TOKENS[kw]; text = text.replace(re, ' ') }
+    if (!out.recur && re.test(text)) { out.recur = RECUR_TOKENS[kw]; text = text.replace(re, ' ') }
   })
 
   out.title = text.replace(/\s+/g, ' ').trim()
@@ -267,12 +280,10 @@ export const initialData = () => ({
   gadgets: [],
   // V5 Oracle Integration
   wiretap: [], // raw intel backlog {id, text, at}
-  pendingTwoFace: false,
+  harveyDeal: null, // {state:'offered'|'accepted', offeredOn, date, sector} — Harvey's Deal
   // GCPD Dispatch Grid
   schedule: {}, // slotKey "wd:mins" → taskId (repeats weekly)
   notifiedSlots: {}, // "YYYY-MM-DD:wd:mins" → true (chrono de-dupe, reset nightly)
-  // Arkham Mutation Protocol
-  riddlerScrambled: [],
   // V7 Gotham Paradigm
   activeTab: 'mission',
   lastLoginDate: null,
@@ -291,10 +302,9 @@ export const initialData = () => ({
   lastInterrogation: null,
   // V9
   slotResolutions: {},
-  adHackedUntil: 0,
+  alertLog: { date: null, count: 0, dropped: 0 }, // unsolicited alerts shown tonight
   // FOUNDATION (full UI lands in a later stage)
   contingencies: [],
-  rnd: [],
   biometrics: { date: null, sleep: null, soreness: null, bacta: false },
   lazarus: { scars: [] },
 })
@@ -439,15 +449,6 @@ export const useStore = create(
         get().pushToast('ALFRED', 'Prep time logged, sir. Batman never fails with prep time. Do not embarrass us.', 'gold')
       },
 
-      // ADOPT A ROBIN — delegate a low-threat task into oblivion.
-      delegateTask: (id) => {
-        set((st) => ({
-          tasks: st.tasks.filter((t) => t.id !== id),
-          signal: st.signal?.taskId === id ? null : st.signal,
-        }))
-        get().pushToast('ALFRED', ROBIN_TOAST, 'gold')
-      },
-
       // BILLIONAIRE PLAYBOY ALIBI — the only way to clear a locked, critically
       // overdue task. Archives it as a tagged failure for the Arkham Wing.
       clearWithAlibi: (id) => {
@@ -490,21 +491,9 @@ export const useStore = create(
 
         // permanent boss-defeat buff folds into every XP award
         const xpMult = 1 + st.bossBuffs * BOSS_BUFF_STEP
-        let gainedXp = Math.round(meta.xp * mult * xpMult)
-        let gainedCoins = meta.coins * mult
-        let chaos = false
-
-        // JOKER CHAOS — random skim unless shielded by Wayne Coins
-        if (Math.random() < JOKER_CHANCE) {
-          if (st.coins >= JOKER_SHIELD_COST) {
-            // auto-spend shield (handled silently; user can disable via UI later)
-            gainedCoins -= JOKER_SHIELD_COST
-          } else {
-            chaos = true
-            gainedXp = Math.round(gainedXp * 0.4)
-            gainedCoins = Math.max(0, Math.round(gainedCoins * 0.4))
-          }
-        }
+        // A completion is never taxed (law 2: punish inaction, never action).
+        const gainedXp = Math.round(meta.xp * mult * xpMult)
+        const gainedCoins = meta.coins * mult
 
         const { sector, unlocked } = applyXp(st.sectors, t.sector, gainedXp)
 
@@ -537,19 +526,15 @@ export const useStore = create(
 
         get().bumpStreak()
         get().dealBossDamage(meta.rank) // every closed case wounds the weekly Rogue
-        unlocked.forEach((u) => get().pushToast('UPGRADE ACQUIRED', u, 'gold'))
-        if (chaos) get().pushToast('ALFRED', pick(ALFRED.chaos), 'chaos')
-        else get().pushToast('ALFRED', pick(ALFRED.done), 'gold')
-
-        // Defeating a Riddler-mutated case breaks the cipher on the backlog.
-        if (t.mutation === 'riddler') set({ riddlerScrambled: [] })
+        unlocked.forEach((u) => get().pushToast('UPGRADE ACQUIRED', u, 'gold', { priority: 1 }))
+        get().pushToast('ALFRED', pick(ALFRED.done), 'gold', { priority: 3 })
 
         // A scheduled Core Task closing marks its Detective Board node solved.
         if (t.coreId) set((s2) => ({ boardCores: s2.boardCores.map((c) => (c.id === t.coreId ? { ...c, done: true } : c)) }))
 
         // A completed patrol route re-arms at the next midnight rollover,
         // so nothing to respawn here — see rolloverCheck().
-        return { gainedXp, gainedCoins, unlocked, chaos, isSignal }
+        return { gainedXp, gainedCoins, unlocked, isSignal }
       },
 
       // Punitive sweep — drain XP for tasks failed (called at rollover).
@@ -611,6 +596,8 @@ export const useStore = create(
               })
             }
             survivors.push({ ...t, done: armed ? false : t.done, armed })
+          } else if (t.assignedTo && t.followUpOn && t.followUpOn >= today && !t.done) {
+            survivors.push(t) // handed off — exempt from the lock until its follow-up night
           } else if (t.status !== 'backlog' && !t.done && (t.scheduledFor || t.createdDate) < today && !t.locked) {
             // one-off, on-patrol & overdue → LOCK it (critically overdue). Penalty
             // applies once now; ×10 if prep time was invoked. Backlog intel and
@@ -639,30 +626,74 @@ export const useStore = create(
           signalMissed = { date: st.signal.date, title: t?.title || 'the priority target', penalty }
         }
 
-        // Two-Face: did a 7-day (or longer) streak just shatter?
+        // THE JOKER — patrol windows booked for last night that still hold an
+        // open case. He only ever hits commitments you ignored.
+        const openIds = new Set(st.tasks.filter((t) => !t.done && !t.locked && t.status !== 'backlog').map((t) => t.id))
+        const knownIds = new Set(st.tasks.map((t) => t.id))
+        const ignored = Object.entries(st.schedule).filter(
+          ([k, id]) => Number(k.split(':')[0]) === lastNightWd && openIds.has(id)
+        )
+        let jokerToll = 0
+        ignored.forEach(([, id]) => {
+          const t = st.tasks.find((x) => x.id === id)
+          const drained = applyXp(workingSectors, t.sector, -JOKER_TOLL_XP)
+          workingSectors = drained.sector
+          jokerToll += JOKER_TOLL_XP
+        })
+        // slots pointing at cases that no longer exist are swept
+        const schedule = Object.fromEntries(Object.entries(st.schedule).filter(([, id]) => knownIds.has(id)))
+
+        // HARVEY'S DEAL — settle last night's bet, or an offer left unanswered.
+        let coins = st.coins
+        let harveyDeal = st.harveyDeal
+        let harveyNote = null
+        if (harveyDeal?.state === 'accepted' && harveyDeal.date < today) {
+          const closed = st.completionLog.find((d) => d.date === harveyDeal.date)?.count || 0
+          if (closed >= HARVEY_DEAL.target) {
+            harveyNote = { tone: 'gold', text: `${closed} cases closed. The coin lands clean — you walk away unscarred.` }
+          } else {
+            workingSectors = applyXp(workingSectors, harveyDeal.sector, -HARVEY_DEAL.scarXp * 2).sector
+            coins = Math.max(0, coins - HARVEY_DEAL.scarCoins * 2)
+            harveyNote = { tone: 'blood', text: `${closed} of ${HARVEY_DEAL.target}. You bet and lost: −${HARVEY_DEAL.scarXp * 2} XP, −${HARVEY_DEAL.scarCoins * 2} WC.` }
+          }
+          harveyDeal = null
+        } else if (harveyDeal?.state === 'offered' && harveyDeal.offeredOn < today) {
+          // no answer by the next night: Harvey takes the scar
+          workingSectors = applyXp(workingSectors, harveyDeal.sector, -HARVEY_DEAL.scarXp).sector
+          coins = Math.max(0, coins - HARVEY_DEAL.scarCoins)
+          harveyNote = { tone: 'blood', text: `You never answered. Harvey took the scar: −${HARVEY_DEAL.scarXp} XP, −${HARVEY_DEAL.scarCoins} WC.` }
+          harveyDeal = null
+        }
+        // a 7-night (or longer) streak just shattered → offer the deal
         const streakShattered = failed > 0 && st.streak >= TWOFACE_STREAK
+        if (streakShattered && !harveyDeal) {
+          harveyDeal = { state: 'offered', offeredOn: today, sector: newlyFailed[0]?.sector || 'mind' }
+        }
 
         set({
           tasks: survivors,
           sectors: workingSectors,
+          coins,
+          schedule,
           closedTasks: [...newlyFailed, ...st.closedTasks].slice(0, 400),
           lastSeen: today,
           failedCount: st.failedCount + failed,
           streak: failed > 0 ? 0 : st.streak,
-          lastFearToxin: failed > 0 ? Date.now() : st.lastFearToxin,
-          pendingTwoFace: st.pendingTwoFace || streakShattered,
+          lastFearToxin: failed > 0 || jokerToll > 0 ? Date.now() : st.lastFearToxin,
+          harveyDeal,
           notifiedSlots: {}, // fresh chrono log each new night
           slotResolutions: {}, // routine ticks/crosses reset at the night boundary
           signal: signalMissed ? null : st.signal,
           signalMisses: signalMissed ? [signalMissed, ...st.signalMisses].slice(0, 60) : st.signalMisses,
         })
 
+        // every message here is unsolicited → it goes through the nightly alert cap
         if (signalMissed)
-          get().pushToast('CRIME ALLEY', `The Signal burned all night over “${signalMissed.title}”. No one came. −${signalMissed.penalty} XP.`, 'blood')
-
-        if (failed > 0) get().pushToast('ALFRED', pick(ALFRED.fail), 'blood')
-        if (streakShattered) get().pushToast('TWO-FACE', 'A seven-night streak, broken. The coin must decide your fate.', 'chaos')
-        get().pushToast('ALFRED', pick(ALFRED.greeting), 'gold')
+          get().pushToast('CRIME ALLEY', `The Signal burned all night over “${signalMissed.title}”. No one came. −${signalMissed.penalty} XP.`, 'blood', { alert: true, priority: 0, notify: true })
+        if (harveyNote) get().pushToast('TWO-FACE', harveyNote.text, harveyNote.tone, { alert: true, priority: 1 })
+        if (jokerToll > 0)
+          get().pushToast('THE JOKER', `You booked ${ignored.length} patrol window${ignored.length > 1 ? 's' : ''} last night and never showed. HAHA. −${jokerToll} XP.`, 'chaos', { alert: true, priority: 2 })
+        if (failed > 0 && !signalMissed) get().pushToast('ALFRED', pick(ALFRED.fail), 'blood', { alert: true, priority: 2 })
       },
 
       // streak = consecutive calendar days (ending today) with >=1 completion
@@ -685,19 +716,56 @@ export const useStore = create(
         return true
       },
 
-      /* ──────────────────── ALFRED / TOASTS ────────────────────── */
-      pushToast: (label, text, tone = 'gold') => {
+      /* ──────────── ORACLE COMMS — the single alert queue ────────────
+         Everything the OS says goes through here. The toaster shows one
+         message at a time (the head of the queue); the rest wait in
+         priority order and the queue never holds more than 4.
+           opts.alert    — unsolicited (you didn't just cause it). Capped at
+                           ALERT_CAP_PER_NIGHT per night; extras are dropped.
+                           The Signal (priority 0) always gets through.
+           opts.priority — 0 Signal · 1 patrol start / rank · 2 warnings · 3 chatter
+           opts.notify   — also raise a system notification (patrol start and
+                           the Signal only)
+         ──────────────────────────────────────────────────────────────── */
+      pushToast: (label, text, tone = 'gold', opts = {}) => {
+        const { alert = false, priority = 2, notify = false } = opts
+        const st = get()
+        if (st.toasts.some((t) => t.label === label && t.text === text)) return null
+        if (alert) {
+          const night = todayKey()
+          const log = st.alertLog?.date === night ? st.alertLog : { date: night, count: 0, dropped: 0 }
+          if (log.count >= ALERT_CAP_PER_NIGHT && priority > 0) {
+            set({ alertLog: { ...log, dropped: log.dropped + 1 } })
+            return null
+          }
+          set({ alertLog: { ...log, count: log.count + 1 } })
+        }
         const id = uid()
-        set((st) => ({ toasts: [...st.toasts, { id, label, text, tone }] }))
-        // browser notification, if granted
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const toast = { id, label, text, tone, priority, at: Date.now() }
+        set((s2) => {
+          const [head, ...tail] = s2.toasts
+          if (!head) return { toasts: [toast] }
+          // the head is on screen — never yank it; sort only what waits
+          const waiting = [...tail, toast].sort((a, b) => a.priority - b.priority || a.at - b.at)
+          // over 3 waiting: drop the least important, and among those the
+          // OLDEST — the newest message is the one about what you just did
+          while (waiting.length > 3) {
+            let drop = 0
+            waiting.forEach((t, i) => {
+              const d = waiting[drop]
+              if (t.priority > d.priority || (t.priority === d.priority && t.at < d.at)) drop = i
+            })
+            waiting.splice(drop, 1)
+          }
+          return { toasts: [head, ...waiting] }
+        })
+        if (notify && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           try {
-            new Notification(`ALFRED // ${label}`, { body: text, silent: true })
+            new Notification(`WAYNE OS // ${label}`, { body: text, silent: false })
           } catch (e) {
             /* notifications unavailable */
           }
         }
-        setTimeout(() => get().dismissToast(id), 5200)
         return id
       },
       dismissToast: (id) =>
@@ -759,7 +827,8 @@ export const useStore = create(
           get().pushToast(
             'ORACLE OVERRIDE',
             `${pick(ORACLE_OVERRIDE)} → ${task ? task.title : 'scheduled objective'}`,
-            'blood'
+            'blood',
+            { alert: true, priority: 1, notify: true }
           )
         })
       },
@@ -771,13 +840,9 @@ export const useStore = create(
 
       /* ════════════ V7 · DAILY ALFRED BRIEFING ══════════════════ */
       needsBriefing: () => get().lastLoginDate !== todayKey(),
-      claimDailyBonus: () => {
-        if (get().lastLoginDate === todayKey()) return
-        set((st) => ({ coins: st.coins + DAILY_LOGIN_BONUS, lastLoginDate: todayKey() }))
-        get().pushToast('ALFRED', `Daily commendation logged. +${DAILY_LOGIN_BONUS} WC, sir.`, 'gold')
-      },
-
-      /* ════════════ V7 · WEEKLY ROGUE BOSS FIGHT ════════════════ */
+      // The briefing is a ritual, not a slot machine: no coins for showing up.
+      markBriefed: () => set({ lastLoginDate: todayKey() }),
+          /* ════════════ V7 · WEEKLY ROGUE BOSS FIGHT ════════════════ */
       // Ensure a live boss for the current week; rotate + scar on a new week.
       ensureBoss: () => {
         const st = get()
@@ -788,7 +853,7 @@ export const useStore = create(
             ? st.bossScars
             : [...st.bossScars, { id: st.boss.id, name: st.boss.name, week: st.boss.weekKey }]
           if (!st.boss.defeated)
-            get().pushToast(st.boss.name.toUpperCase(), 'The week ended. I escaped — and I left a scar on your Gotham.', 'blood')
+            get().pushToast(st.boss.name.toUpperCase(), 'The week ended. I escaped — and I left a scar on your Gotham.', 'blood', { alert: true, priority: 2 })
           set({ boss: freshBoss(st.boss.id), bossScars: scars })
         }
       },
@@ -800,7 +865,7 @@ export const useStore = create(
         const hp = Math.max(0, st.boss.hp - dmg)
         if (hp <= 0) {
           set({ boss: { ...st.boss, hp: 0, defeated: true }, bossBuffs: st.bossBuffs + 1 })
-          get().pushToast(st.boss.name.toUpperCase(), `Defeated before the week was out. Permanent +${Math.round(BOSS_BUFF_STEP * 100)}% XP secured.`, 'gold')
+          get().pushToast(st.boss.name.toUpperCase(), `Defeated before the week was out. Permanent +${Math.round(BOSS_BUFF_STEP * 100)}% XP secured.`, 'gold', { priority: 1 })
         } else {
           set({ boss: { ...st.boss, hp } })
         }
@@ -847,12 +912,6 @@ export const useStore = create(
         return true
       },
       clearSlotResolutions: () => set({ slotResolutions: {} }),
-
-      /* ════════════ V9 · UTILITY BELT (gadget effects) ═════════ */
-      hackAd: () => {
-        set({ adHackedUntil: Date.now() + 4 * 3600000 })
-        get().pushToast('CRYPTO SEQUENCER', 'Signal hijacked. The broadcast is dark for 4 hours.', 'gold')
-      },
 
       /* ════════════ V9 · QUICK-SCHEDULE (T hotkey) ═════════════ */
       setHoveredTask: (id) => set({ hoveredTaskId: id }),
@@ -996,49 +1055,54 @@ export const useStore = create(
       },
       dismissInterrogation: () => set({ lastInterrogation: todayKey() }),
 
-      /* ════════════ BAT-FAMILY NETWORK (delegation) ══════════════ */
-      // Hand a case to a sidekick; it leaves your active board for their queue.
-      assignTaskTo: (id, sidekickId) => {
-        if (get().signal?.taskId === id) {
-          get().pushToast('ALFRED', 'The Signal is yours, sir. It cannot be handed to the family.', 'blood')
+      /* ════════════ THE FAMILY — real hand-offs ══════════════════ */
+      // Hand a case to a real person. It stays in your Case File, marked
+      // "with <name>", and is exempt from the overdue lock only until its
+      // follow-up night. Closing it is still your job: confirm it's done.
+      handOff: (id, to, followUpOn) => {
+        const st = get()
+        const t = st.tasks.find((x) => x.id === id)
+        const name = (to || '').trim()
+        if (!t || !name) return false
+        if (st.signal?.taskId === id) {
+          get().pushToast('ALFRED', 'The Signal is yours, sir. It cannot be handed off.', 'blood')
           return false
         }
-        set((st) => ({ tasks: st.tasks.map((t) => (t.id === id ? { ...t, assignedTo: sidekickId } : t)) }))
-        const sk = SIDEKICK_BY_ID[sidekickId]
-        if (sk) get().pushToast(sk.name.toUpperCase(), sk.line, 'gold')
+        const follow = followUpOn && followUpOn >= todayKey() ? followUpOn : shiftKey(todayKey(), HANDOFF_DEFAULT_NIGHTS)
+        set({ tasks: st.tasks.map((x) => (x.id === id ? { ...x, assignedTo: name, followUpOn: follow } : x)) })
+        get().pushToast('ALFRED', `Handed to ${name}. I shall remind you to check on ${follow}, sir.`, 'gold', { priority: 3 })
+        return true
       },
-      // Pull a delegated case back onto your own board.
-      recallTask: (id) =>
-        set((st) => ({ tasks: st.tasks.map((t) => (t.id === id ? { ...t, assignedTo: null } : t)) })),
+      // Take a handed-off case back onto your own plate.
+      takeBack: (id) =>
+        set((st) => ({ tasks: st.tasks.map((t) => (t.id === id ? { ...t, assignedTo: null, followUpOn: null } : t)) })),
 
       /* ════════════ ARKHAM MUTATION PROTOCOL ════════════════════ */
-      // Run on the rollover tick: any case locked >24h metastasises into a Rogue.
+      // Run on the rollover tick: any case locked >24h metastasises into a
+      // Rogue — and that Rogue FEEDS the weekly boss. The tool itself is
+      // never degraded (law 3: penalties cost the city, not the tool).
       mutateOverdueTasks: () => {
         const st = get()
         const ripe = st.tasks.filter(
           (t) => t.locked && !t.mutation && !t.done && t.lockedAt && Date.now() - t.lockedAt > MUTATION_AGE_MS
         )
         if (ripe.length === 0) return
-        let scrambled = [...st.riddlerScrambled]
         const mutatedIds = {}
         ripe.forEach((t) => {
-          const mut = MUTATION_IDS[Math.floor(Math.random() * MUTATION_IDS.length)]
-          mutatedIds[t.id] = mut
-          get().pushToast(MUTATIONS[mut].rogue.toUpperCase(), MUTATIONS[mut].taunt, 'chaos')
-          if (mut === 'riddler') {
-            // cipher up to 3 random OTHER open cases
-            const pool = st.tasks.filter((x) => x.id !== t.id && !x.done && !x.assignedTo).map((x) => x.id)
-            for (let i = pool.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));[pool[i], pool[j]] = [pool[j], pool[i]]
-            }
-            scrambled = Array.from(new Set([...scrambled, ...pool.slice(0, 3)]))
-          }
+          mutatedIds[t.id] = MUTATION_IDS[Math.floor(Math.random() * MUTATION_IDS.length)]
         })
+        const feed = ripe.length * MUTATION_BOSS_HP
+        const boss = st.boss && !st.boss.defeated
+          ? { ...st.boss, hp: st.boss.hp + feed, maxHp: st.boss.maxHp + feed }
+          : st.boss
         set({
           tasks: st.tasks.map((t) => (mutatedIds[t.id] ? { ...t, mutation: mutatedIds[t.id] } : t)),
-          riddlerScrambled: scrambled,
+          boss,
           lastFearToxin: Date.now(),
         })
+        const first = MUTATIONS[mutatedIds[ripe[0].id]]
+        const fed = boss && boss !== st.boss ? ` ${boss.name} grows stronger: +${feed} HP.` : ''
+        get().pushToast(first.rogue.toUpperCase(), `${first.taunt}${fed}`, 'chaos', { alert: true, priority: 2 })
       },
 
       /* ════════════ V5 · COMMAND CONSOLE (Cmd+K) ═════════════════ */
@@ -1081,25 +1145,28 @@ export const useStore = create(
         }))
       },
 
-      /* ════════════ V5 · TWO-FACE (the coin decides) ════════════ */
-      resolveTwoFace: () => {
-        const clean = Math.random() < 0.5
+      /* ════════════ HARVEY'S DEAL (a choice, not a coin) ═════════════ */
+      // Take the scar now…
+      acceptScar: () => {
         const st = get()
-        if (clean) {
-          set({ pendingTwoFace: false })
-          get().pushToast('TWO-FACE', TWOFACE.cleanText, 'gold')
-        } else {
-          const sectorKey = 'mind'
-          const { sector } = applyXp(st.sectors, sectorKey, -TWOFACE.scarredXp)
-          set({
-            pendingTwoFace: false,
-            sectors: sector,
-            coins: Math.max(0, st.coins - TWOFACE.scarredCoins),
-            lastFearToxin: Date.now(),
-          })
-          get().pushToast('TWO-FACE', TWOFACE.scarredText, 'chaos')
-        }
-        return clean
+        const deal = st.harveyDeal
+        if (!deal || deal.state !== 'offered') return
+        const { sector } = applyXp(st.sectors, deal.sector, -HARVEY_DEAL.scarXp)
+        set({
+          sectors: sector,
+          coins: Math.max(0, st.coins - HARVEY_DEAL.scarCoins),
+          harveyDeal: null,
+          lastFearToxin: Date.now(),
+        })
+        get().pushToast('TWO-FACE', `The scar is yours: −${HARVEY_DEAL.scarXp} XP, −${HARVEY_DEAL.scarCoins} WC. Start again tonight.`, 'chaos', { priority: 1 })
+      },
+      // …or bet tonight on it: close HARVEY_DEAL.target cases and walk away clean.
+      takeHarveyDeal: () => {
+        const st = get()
+        const deal = st.harveyDeal
+        if (!deal || deal.state !== 'offered') return
+        set({ harveyDeal: { ...deal, state: 'accepted', date: todayKey() } })
+        get().pushToast('TWO-FACE', `Double or nothing. Close ${HARVEY_DEAL.target} cases tonight.`, 'chaos', { priority: 1 })
       },
 
       /* ════════════════ COWL TOGGLE (duality) ═════════════════════ */
@@ -1182,29 +1249,6 @@ export const useStore = create(
         )
       },
 
-      /* ════════════ FOUNDATION — Lucius Fox R&D (coin sink) ═══════ */
-      addPrototype: (title) =>
-        set((st) => ({ rnd: [...st.rnd, { id: uid(), title: title.trim(), stage: 'idea', invested: 0 }] })),
-      investInPrototype: (id) => {
-        const st = get()
-        const p = st.rnd.find((x) => x.id === id)
-        if (!p) return false
-        const idx = RND_STAGES.indexOf(p.stage)
-        const nextStage = RND_STAGES[idx + 1]
-        if (!nextStage) return false
-        const cost = RND_STAGE_COST[nextStage]
-        if (st.coins < cost) {
-          get().pushToast('LUCIUS FOX', `Need ${cost} WC to advance “${p.title}”, sir.`, 'gold')
-          return false
-        }
-        set({
-          coins: st.coins - cost,
-          rnd: st.rnd.map((x) => (x.id === id ? { ...x, stage: nextStage, invested: x.invested + cost } : x)),
-        })
-        get().pushToast('LUCIUS FOX', `“${p.title}” advanced to ${nextStage.toUpperCase()}.`, 'gold')
-        return true
-      },
-
       /* ════════════ FOUNDATION — Batsuit Telemetry (biometrics) ═══ */
       setBiometrics: (sleep, soreness) => {
         const bacta = sleep < BACTA_SLEEP_THRESHOLD || soreness >= BACTA_SORENESS_THRESHOLD
@@ -1212,22 +1256,6 @@ export const useStore = create(
         if (bacta)
           get().pushToast('ALFRED', 'Engaging Bacta Tank Mode, sir. Tonight we heal, not hunt.', 'gold')
         return bacta
-      },
-
-      /* ════════════ FOUNDATION — The Lazarus Pit (grace + scar) ═══ */
-      lazarusReset: () => {
-        const st = get()
-        const clearedTasks = st.tasks.length
-        set({
-          tasks: [], // overwhelmed slate, wiped clean
-          signal: null,
-          failedCount: 0, // overdue penalties forgiven
-          focus: null,
-          lastSeen: todayKey(),
-          lazarus: { scars: [...st.lazarus.scars, { date: todayKey(), clearedTasks, at: Date.now() }] },
-          lastFearToxin: Date.now(),
-        })
-        get().pushToast('RA\'S AL GHUL', 'The Pit forgives the body. It does not forgive the soul. The scar remains.', 'chaos')
       },
 
       /* ──────────────── WAYNE-TECH VAULT (export / import) ──────────── */
@@ -1269,7 +1297,8 @@ export const useStore = create(
     {
       name: STORAGE_KEY,
       // v1 = Phase 0: local night keys, Signal rules, validated saves.
-      version: 1,
+      // v2 = Phase 1: cut features' keys dropped, hand-offs use real names.
+      version: 2,
       // Older saves (v0) are normalised against the defaults; nothing is lost
       // except damaged cases and an in-flight focus session.
       migrate: (persisted) => normalizeState(persisted, initialData()).data,
@@ -1316,32 +1345,6 @@ export function build365Series(log) {
     out.push({ date: key, points: e?.points || 0, count: e?.count || 0, arkham: e?.arkham || 0 })
   }
   return out
-}
-
-// Active mutations present on the board → drives the OS-wide debuffs.
-// Returns a Set of mutation ids ('freeze' | 'riddler' | 'scarecrow').
-export function selectActiveMutations(tasks) {
-  return new Set(tasks.filter((t) => !t.done && t.mutation).map((t) => t.mutation))
-}
-
-// Group delegated tasks by sidekick id → { nightwing:[...], ... }.
-export function groupBySidekick(tasks) {
-  const out = {}
-  tasks.filter((t) => !t.done && t.assignedTo).forEach((t) => {
-    ;(out[t.assignedTo] ||= []).push(t)
-  })
-  return out
-}
-
-// Group tasks into the three Blackgate columns. `closed` feeds Incarcerated.
-// Delegated cases (assignedTo) are off the board — they're with the family.
-export function groupForKanban(tasks, closedTasks) {
-  const open = tasks.filter((t) => !t.done && !t.assignedTo)
-  return {
-    backlog: open.filter((t) => t.status === 'backlog'),
-    patrol: open.filter((t) => t.status !== 'backlog'),
-    incarcerated: closedTasks.filter((t) => !t.failed).slice(0, 12),
-  }
 }
 
 // Threat-aware sort: Arkham first, then by creation recency.

@@ -1,22 +1,21 @@
 /* ═══════════════════════════════════════════════════════════════════
-   BATCOMPUTER COMMAND CONSOLE — the primary intake.
-   Cmd/Ctrl+K anywhere. A cinematic omnibar that auto-parses intel
-   (#sector  !threat  tomorrow  daily  !prep) into a structured case,
-   with tactile toggles to override. Spring physics, glass, cyan HUD.
+   BATCOMPUTER COMMAND CONSOLE — the ONE intake for cases.
+   Cmd/Ctrl+K anywhere (or the DECRYPT button). An omnibar that parses
+   intel (#sector  !threat  tomorrow  daily  every mon wed  !prep) into a
+   structured case, with toggles to override. "?" opens the field manual.
    Alfred: standing by for field orders, sir.
    ═══════════════════════════════════════════════════════════════════ */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Command, CornerDownLeft, Clock, Baby, Zap } from 'lucide-react'
+import { Command, CornerDownLeft, Clock, Zap, HelpCircle } from 'lucide-react'
 import { useStore, parseIntel } from '../store'
-import { SECTORS, SECTOR_ORDER, THREAT, CONSOLE_THREATS, RECUR } from '../constants'
+import { SECTORS, SECTOR_ORDER, THREAT, THREAT_ORDER, RECUR, WEEKDAYS_FULL, CONSOLE_TIPS } from '../constants'
 
 export default function CommandConsole() {
   const open = useStore((s) => s.commandOpen)
   const close = useStore((s) => s.closeCommand)
   const toggle = useStore((s) => s.toggleCommand)
   const addTask = useStore((s) => s.addTask)
-  const delegateTask = useStore((s) => s.delegateTask)
   const assignSlot = useStore((s) => s.assignSlot)
   const inputRef = useRef(null)
 
@@ -25,7 +24,9 @@ export default function CommandConsole() {
   const [ovSector, setOvSector] = useState(null)
   const [ovThreat, setOvThreat] = useState(null)
   const [prep, setPrep] = useState(false)
-  const [delegate, setDelegate] = useState(false)
+  const [ovRecur, setOvRecur] = useState(null) // null = follow the parser
+  const [ovDays, setOvDays] = useState([])
+  const [help, setHelp] = useState(false)
   // chrono-input (Directive 4) — date + start/end → auto-inject into Dispatch
   const [date, setDate] = useState('')
   const [startT, setStartT] = useState('')
@@ -48,7 +49,7 @@ export default function CommandConsole() {
   // focus + reset on open
   useEffect(() => {
     if (open) {
-      setRaw(''); setOvSector(null); setOvThreat(null); setPrep(false); setDelegate(false)
+      setRaw(''); setOvSector(null); setOvThreat(null); setPrep(false); setOvRecur(null); setOvDays([]); setHelp(false)
       setDate(''); setStartT(''); setEndT('')
       setTimeout(() => inputRef.current?.focus(), 60)
     }
@@ -59,13 +60,15 @@ export default function CommandConsole() {
   const threat = ovThreat || parsed.threat || 'MEDIUM'
   const usePrep = prep || parsed.prep
   const schedule = parsed.schedule
-  const recur = parsed.recur || RECUR.NONE
+  const recur = ovRecur || parsed.recur || RECUR.NONE
+  const days = ovRecur === RECUR.CUSTOM ? ovDays : ovRecur ? [] : parsed.days || []
+  const toggleDay = (d) => setOvDays((ds) => (ds.includes(d) ? ds.filter((x) => x !== d) : [...ds, d].sort()))
 
   const commit = () => {
     const title = parsed.title
     if (!title) return
-    const id = addTask({ title, sector, threat, recur, schedule, prep: usePrep })
-    if (delegate) delegateTask(id) // straight to the underaged sidekick
+    if (recur === RECUR.CUSTOM && days.length === 0) return // pick at least one night
+    const id = addTask({ title, sector, threat, recur, days, schedule, prep: usePrep })
     // Chrono-input: if a start time is set, inject into the Dispatch Grid slot.
     if (startT) {
       const [hh, mm] = startT.split(':').map(Number)
@@ -81,7 +84,7 @@ export default function CommandConsole() {
     if (parsed.sector) chips.push({ k: '#' + parsed.sector, c: SECTORS[parsed.sector]?.accent })
     if (parsed.threat) chips.push({ k: '!' + parsed.threat.toLowerCase(), c: THREAT[parsed.threat].color })
     if (parsed.schedule != null) chips.push({ k: parsed.schedule === 0 ? 'tonight' : 'tomorrow', c: '#D62516' })
-    if (parsed.recur) chips.push({ k: parsed.recur.toLowerCase(), c: '#7b8ec4' })
+    if (parsed.recur) chips.push({ k: parsed.recur === RECUR.CUSTOM ? 'every ' + (parsed.days || []).map((d) => WEEKDAYS_FULL[d].toLowerCase()).join(' ') : parsed.recur.toLowerCase(), c: '#7b8ec4' })
     if (parsed.prep) chips.push({ k: '!prep', c: '#D73423' })
     return chips
   }, [parsed])
@@ -108,7 +111,13 @@ export default function CommandConsole() {
               <span className="flex items-center gap-2 font-display text-[12px] font-semibold tracking-[0.3em] text-hud">
                 <Command size={14} /> BATCOMPUTER COMMAND CONSOLE
               </span>
-              <span className="font-tech text-[12px] uppercase tracking-[0.18em] text-ash">decrypt new intel</span>
+              <button
+                onClick={() => setHelp((v) => !v)}
+                className={`flex items-center gap-1 font-tech text-[12px] uppercase tracking-[0.18em] transition ${help ? 'text-hud' : 'text-ash hover:text-bone'}`}
+                title="Field manual"
+              >
+                <HelpCircle size={14} /> field manual
+              </button>
             </div>
 
             {/* the omnibar */}
@@ -117,7 +126,10 @@ export default function CommandConsole() {
                 ref={inputRef}
                 value={raw}
                 onChange={(e) => setRaw(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && commit()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commit()
+                  else if (e.key === '?' && !raw) { e.preventDefault(); setHelp((v) => !v) }
+                }}
                 placeholder="Describe the objective…  e.g.  shadow the docks #body !arkham tomorrow !prep"
                 className="w-full bg-transparent font-tech text-[26px] font-medium text-bone outline-none placeholder:text-ash/60"
               />
@@ -147,11 +159,33 @@ export default function CommandConsole() {
               </ToggleRow>
 
               <ToggleRow label="THREAT">
-                {CONSOLE_THREATS.map((t) => (
-                  <Chip key={t.key} active={threat === t.key} color={THREAT[t.key].color} onClick={() => setOvThreat(t.key)}>
-                    {t.label}
+                {[...THREAT_ORDER].reverse().map((k) => (
+                  <Chip key={k} active={threat === k} color={THREAT[k].color} onClick={() => setOvThreat(k)}>
+                    {THREAT[k].tag}
                   </Chip>
                 ))}
+              </ToggleRow>
+
+              <ToggleRow label="ROUTE">
+                {[RECUR.NONE, RECUR.DAILY, RECUR.WEEKLY, RECUR.CUSTOM].map((r) => (
+                  <Chip key={r} active={recur === r} color="#7b8ec4" onClick={() => setOvRecur(r)}>
+                    {r === RECUR.NONE ? 'ONE-OFF' : r === RECUR.CUSTOM ? 'NIGHTS' : r}
+                  </Chip>
+                ))}
+                {recur === RECUR.CUSTOM &&
+                  WEEKDAYS_FULL.map((d, i) => (
+                    <Chip
+                      key={d}
+                      active={(ovRecur === RECUR.CUSTOM ? ovDays : days).includes(i)}
+                      color="#D73423"
+                      onClick={() => {
+                        if (ovRecur !== RECUR.CUSTOM) { setOvRecur(RECUR.CUSTOM); setOvDays(days) }
+                        toggleDay(i)
+                      }}
+                    >
+                      {d.slice(0, 2)}
+                    </Chip>
+                  ))}
               </ToggleRow>
 
               {/* Directive 4 — chrono scheduling → Dispatch Grid */}
@@ -167,9 +201,6 @@ export default function CommandConsole() {
                 <SwitchChip active={usePrep} color="#D73423" icon={Clock} onClick={() => setPrep((v) => !v)}>
                   REQUIRE PREP (15m)
                 </SwitchChip>
-                <SwitchChip active={delegate} color="#e5c100" icon={Baby} onClick={() => setDelegate((v) => !v)}>
-                  DELEGATE TO ROBIN
-                </SwitchChip>
                 {schedule != null && (
                   <span className="ml-auto font-display text-[11px] tracking-[0.2em] text-hud">
                     SCHEDULED · {schedule === 0 ? 'TONIGHT' : 'TOMORROW'}
@@ -178,14 +209,35 @@ export default function CommandConsole() {
               </div>
             </div>
 
+            {/* field manual */}
+            <AnimatePresence>
+              {help && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden border-t border-hud/20"
+                >
+                  <div className="grid gap-x-6 gap-y-1.5 px-5 py-3 sm:grid-cols-[auto_1fr]">
+                    {CONSOLE_TIPS.map(([k, v]) => (
+                      <div key={k} className="contents">
+                        <kbd className="font-mono text-[12px] text-hud">{k}</kbd>
+                        <span className="font-mono text-[12px] text-bone-dim">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* footer */}
             <div className="flex items-center justify-between border-t border-hud/20 px-5 py-3">
               <span className="font-mono text-[11px] text-ash">
                 <kbd className="text-hud">#sector</kbd> · <kbd className="text-blood">!threat</kbd> ·{' '}
-                <kbd className="text-bone-dim">tomorrow</kbd> · <kbd className="text-bone-dim">daily</kbd> ·{' '}
+                <kbd className="text-bone-dim">tomorrow</kbd> · <kbd className="text-bone-dim">every mon wed</kbd> ·{' '}
                 <kbd className="text-gold">!prep</kbd>
               </span>
-              <button onClick={commit} disabled={!parsed.title} className="btn-gold flex items-center gap-2 disabled:opacity-40">
+              <button onClick={commit} disabled={!parsed.title || (recur === RECUR.CUSTOM && days.length === 0)} className="btn-gold flex items-center gap-2 disabled:opacity-40">
                 <Zap size={14} /> COMMIT INTEL <CornerDownLeft size={13} />
               </button>
             </div>

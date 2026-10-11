@@ -1,19 +1,19 @@
 /* ═══════════════════════════════════════════════════════════════════
-   THE DAILY ALFRED BRIEFING — the retention loop.
+   THE DAILY ALFRED BRIEFING — the morning ritual.
    Fires once per calendar day. Alfred recaps yesterday, flags today's
-   top target, and hands over a daily login commendation (+Wayne Coins).
+   top target. No coins for showing up: Wayne Coins are earned in the field.
    ═══════════════════════════════════════════════════════════════════ */
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore, sortByThreat, todayKey, shiftKey } from '../store'
-import { DAILY_LOGIN_BONUS, ALFRED_BRIEF_OPEN, THREAT } from '../constants'
+import { ALFRED_BRIEF_OPEN, THREAT } from '../constants'
 
 const asset = (p) => `${import.meta.env.BASE_URL}${p}`
 const pick = (a) => a[Math.floor(Math.random() * a.length)]
 
 export default function DailyBriefing() {
   const lastLoginDate = useStore((s) => s.lastLoginDate)
-  const claim = useStore((s) => s.claimDailyBonus)
+  const markBriefed = useStore((s) => s.markBriefed)
   const tasks = useStore((s) => s.tasks)
   const log = useStore((s) => s.completionLog)
   const streak = useStore((s) => s.streak)
@@ -30,7 +30,7 @@ export default function DailyBriefing() {
     return { yesterdayCount: yEntry?.count || 0, priority: top, greeting: pick(ALFRED_BRIEF_OPEN) }
   }, [log, tasks])
 
-  const accept = () => { claim(); setDismissed(true) }
+  const accept = () => { markBriefed(); setDismissed(true) }
 
   return (
     <AnimatePresence>
@@ -92,7 +92,7 @@ export default function DailyBriefing() {
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-rule px-6 py-4">
-              <span className="font-display text-[11px] tracking-[0.2em] text-gold">+ {DAILY_LOGIN_BONUS} WAYNE COINS</span>
+              <span className="font-display text-[11px] tracking-[0.2em] text-ash">COINS ARE EARNED IN THE FIELD, SIR</span>
               <button onClick={accept} className="btn-gold text-[14px]">ACCEPT BRIEFING</button>
             </div>
           </motion.div>

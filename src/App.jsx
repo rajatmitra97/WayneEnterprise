@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
-import { useStore, selectActiveMutations, todayKey, getNightEndsHour } from './store'
-import { ALFRED, BROODING_IDLE_MS, SCARECROW_INTERVAL_MS } from './constants'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useStore, todayKey, getNightEndsHour } from './store'
+import { TABS } from './constants'
 import IntroSequence from './components/IntroSequence'
 import TopBar from './components/TopBar'
 import BatPanel from './components/BatPanel'
-import BroodingOverlay from './components/BroodingOverlay'
-import CommandBar from './components/CommandBar'
 import Sectors from './components/Sectors'
 import CaseFile from './components/CaseFile'
 import BatSignal from './components/BatSignal'
@@ -16,15 +14,11 @@ import Metrics from './components/Metrics'
 import BackupPanel from './components/BackupPanel'
 import AlfredToaster from './components/AlfredToaster'
 import DetectiveVision from './components/DetectiveVision'
-import LazarusPit from './components/LazarusPit'
 import Armory from './components/Armory'
-import FlyingGadget from './components/FlyingGadget'
 import CommandConsole from './components/CommandConsole'
 import Wiretap from './components/Wiretap'
-import BlackgateKanban from './components/BlackgateKanban'
 import LongHalloweenHeatmap from './components/LongHalloweenHeatmap'
 import DispatchGrid from './components/DispatchGrid'
-import SidekickRoster from './components/SidekickRoster'
 import Sidebar from './components/Sidebar'
 import ContextPanel from './components/ContextPanel'
 import DailyBriefing from './components/DailyBriefing'
@@ -34,38 +28,27 @@ import DetectiveBoard from './components/DetectiveBoard'
 import WayneJournal from './components/WayneJournal'
 import AppliedSciences from './components/AppliedSciences'
 import ArkhamInterrogation from './components/ArkhamInterrogation'
-import ArkhamCell from './components/ArkhamCell'
-import GothamGazetteAd from './components/GothamGazetteAd'
+import HarveyDeal from './components/HarveyDeal'
 import { startSoundscape, stopSoundscape } from './lib/ambientAudio'
 import { INTERROGATION_HOUR, INTERROGATION_MIN } from './constants'
-
-const pick = (a) => a[Math.floor(Math.random() * a.length)]
 
 export default function App() {
   const rolloverCheck = useStore((s) => s.rolloverCheck)
   const checkChrono = useStore((s) => s.checkChrono)
   const mutateOverdueTasks = useStore((s) => s.mutateOverdueTasks)
   const ensureBoss = useStore((s) => s.ensureBoss)
-  const activeTab = useStore((s) => s.activeTab)
+  const storedTab = useStore((s) => s.activeTab)
+  // a tab that no longer exists (e.g. the retired Cell) falls back to Mission Control
+  const activeTab = TABS.some((t) => t.id === storedTab) ? storedTab : 'mission'
   const beltActive = useStore((s) => s.beltActive)
   const mode = useStore((s) => s.mode)
   const muted = useStore((s) => s.muted)
   const toggleMode = useStore((s) => s.toggleMode)
   const closedTasks = useStore((s) => s.closedTasks)
   const lastInterrogation = useStore((s) => s.lastInterrogation)
-  const pushToast = useStore((s) => s.pushToast)
   const lastFearToxin = useStore((s) => s.lastFearToxin)
-  const tasks = useStore((s) => s.tasks)
-  const openCount = useMemo(() => tasks.filter((t) => !t.done).length, [tasks])
-
-  // ── ARKHAM MUTATION debuffs active on the board ──
-  const mutations = useMemo(() => selectActiveMutations(tasks), [tasks])
-  const freezeActive = mutations.has('freeze')
-  const scareActive = mutations.has('scarecrow')
 
   const [toxin, setToxin] = useState(false)
-  const [brooding, setBrooding] = useState(false)
-  const [scareNow, setScareNow] = useState(false)
   const [glitch, setGlitch] = useState(false) // cowl-swap screen glitch
   const [showInterro, setShowInterro] = useState(false) // Arkham Interrogation
 
@@ -79,8 +62,6 @@ export default function App() {
   const [introDone, setIntroDone] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const fearRef = useRef(lastFearToxin)
-  const idleRef = useRef(Date.now())
-  const broodRef = useRef(Date.now())
 
   // Resolve any focus session left dangling by a reload/close.
   // Survived the clock → reward; interrupted → it counts as breaking focus.
@@ -116,17 +97,6 @@ export default function App() {
     }, 60_000)
     return () => clearInterval(t)
   }, [rolloverCheck, mutateOverdueTasks])
-
-  // Scarecrow debuff — fear-toxin jump-scares on a 2-minute cadence while any
-  // Scarecrow mutation is loose.
-  useEffect(() => {
-    if (!scareActive) return
-    const t = setInterval(() => {
-      setScareNow(true)
-      setTimeout(() => setScareNow(false), 750)
-    }, SCARECROW_INTERVAL_MS)
-    return () => clearInterval(t)
-  }, [scareActive])
 
   // Chrono-Notifications — poll the Dispatch Grid for opening patrol slots.
   useEffect(() => {
@@ -208,52 +178,9 @@ export default function App() {
     }
   }, [lastFearToxin])
 
-  // Alfred idle nudges — every few minutes of inactivity, if work is pending.
-  useEffect(() => {
-    const reset = () => (idleRef.current = Date.now())
-    window.addEventListener('pointerdown', reset)
-    window.addEventListener('keydown', reset)
-    const t = setInterval(() => {
-      if (Date.now() - idleRef.current > 5 * 60_000 && openCount > 0) {
-        pushToast('ALFRED', pick(ALFRED.idle), 'gold')
-        idleRef.current = Date.now()
-      }
-    }, 60_000)
-    return () => {
-      clearInterval(t)
-      window.removeEventListener('pointerdown', reset)
-      window.removeEventListener('keydown', reset)
-    }
-  }, [openCount, pushToast])
-
-  // Brooding Mode — after 3 minutes idle, the OS broods. Any activity exits.
-  useEffect(() => {
-    const activity = () => {
-      broodRef.current = Date.now()
-      setBrooding((b) => (b ? false : b))
-    }
-    window.addEventListener('pointermove', activity)
-    window.addEventListener('pointerdown', activity)
-    window.addEventListener('keydown', activity)
-    const t = setInterval(() => {
-      if (Date.now() - broodRef.current > BROODING_IDLE_MS) setBrooding(true)
-    }, 5_000)
-    return () => {
-      clearInterval(t)
-      window.removeEventListener('pointermove', activity)
-      window.removeEventListener('pointerdown', activity)
-      window.removeEventListener('keydown', activity)
-    }
-  }, [])
-
   return (
-    // Mr. Freeze cryo-field — slow Framer's default transition app-wide (3×).
-    <MotionConfig transition={freezeActive ? { duration: 3, ease: 'easeInOut' } : undefined}>
-      <div
-        className={`app-root mode-${mode} ${toxin ? 'animate-fear-toxin' : ''} ${
-          freezeActive ? 'debuff-freeze' : ''
-        } ${scareNow ? 'debuff-scare' : ''}`}
-      >
+    <>
+      <div className={`app-root mode-${mode} ${toxin ? 'animate-fear-toxin' : ''}`}>
         {/* THE CORTICAL SYNC — plays over a hidden dashboard, then dissolves */}
         <AnimatePresence>
           {!introDone && (
@@ -264,13 +191,11 @@ export default function App() {
         <AlfredToaster />
         <CommandConsole />
         <Wiretap />
-        <FlyingGadget />
         <DetectiveVision />
-        <BroodingOverlay active={brooding} onExit={() => setBrooding(false)} />
-        <LazarusPit />
         <DailyBriefing />
         <UtilityBelt />
         <ArkhamInterrogation open={showInterro} failCount={failsToday} onClose={() => setShowInterro(false)} />
+        <HarveyDeal />
 
         {/* Cowl-swap glitch flash (Directive 3) */}
         {glitch && (
@@ -303,12 +228,11 @@ export default function App() {
               <main className="mx-auto grid max-w-[1280px] grid-cols-12 gap-4 px-4 pb-28 pt-6 md:px-8">
                 {activeTab === 'mission' && (
                   <>
+                    {/* the next case is on the first screen: cases first, schedule after */}
                     <BatPanel />
-                    <CommandBar />
-                    <DispatchGrid />
                     <CaseFile />
-                    <SidekickRoster />
                     <BatSignal />
+                    <DispatchGrid />
                   </>
                 )}
 
@@ -328,8 +252,6 @@ export default function App() {
                   <>
                     <Analytics />
                     <WayneJournal />
-                    <GothamGazetteAd className="col-span-12 lg:col-span-6" />
-                    <BlackgateKanban />
                     <LongHalloweenHeatmap />
                   </>
                 )}
@@ -341,11 +263,6 @@ export default function App() {
                   </>
                 )}
 
-                {activeTab === 'cell' && (
-                  <>
-                    <ArkhamCell />
-                  </>
-                )}
               </main>
 
               <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-rule px-6 py-4 font-display text-[10px] uppercase tracking-[0.3em] text-ash-dim md:px-8">
@@ -361,6 +278,6 @@ export default function App() {
           </div>
         </motion.div>
       </div>
-    </MotionConfig>
+    </>
   )
 }
