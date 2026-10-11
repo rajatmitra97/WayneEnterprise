@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { buildSaveText, normalizeState } from './lib/saveFile'
 import {
   SECTOR_ORDER,
   LEVELS_PER_SECTOR,
@@ -52,10 +53,43 @@ import {
   RESEARCH_PROJECTS,
   RESEARCH_HOURS,
   INTERROGATION_PENALTY_RELIEF,
+  NIGHT_ENDS_HOUR,
+  INTAKE_GRACE_MS,
+  SIGNAL_THREATS,
+  SIGNAL_MISS_MULT,
 } from './constants'
 
-// ISO-ish week key so the boss rotates every Monday.
-function weekKey(date = new Date()) {
+/* ═══════════════════════════════════════════════════════════════════
+   TIME — local dates and the night boundary.
+   Every date key is LOCAL (Dhaka, not UTC), and a "night" runs until
+   nightEndsHour the next morning, so a 1 a.m. patrol still belongs to the
+   night it started in. Never use toISOString() for a date key.
+   ═══════════════════════════════════════════════════════════════════ */
+let nightEndsHour = NIGHT_ENDS_HOUR
+const pad2 = (n) => String(n).padStart(2, '0')
+export const getNightEndsHour = () => nightEndsHour
+export const localDateKey = (d = new Date()) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+// The moment shifted back by the night boundary: 01:30 Tue → Mon's night.
+export const nightDate = (d = new Date()) => {
+  const x = new Date(d.getTime())
+  x.setHours(x.getHours() - nightEndsHour)
+  return x
+}
+export const todayKey = () => localDateKey(nightDate())
+export const nightWeekday = () => nightDate().getDay()
+export const keyToDate = (key) => {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+export const shiftKey = (key, days) => {
+  const d = keyToDate(key)
+  d.setDate(d.getDate() + days)
+  return localDateKey(d)
+}
+
+// ISO-ish week key so the boss rotates every Monday (at the night boundary).
+function weekKey(date = keyToDate(todayKey())) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
   const day = d.getUTCDay() || 7
   d.setUTCDate(d.getUTCDate() + 4 - day)
@@ -108,9 +142,9 @@ export function parseIntel(raw) {
   return out
 }
 
-const STORAGE_KEY = 'wayneOSv3'
+export const STORAGE_KEY = 'wayneOSv3'
+export const PREIMPORT_KEY = 'wayneOSv3-preimport'
 const uid = () => Math.random().toString(36).slice(2, 10)
-export const todayKey = () => new Date().toISOString().slice(0, 10)
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
 
 const freshSectors = () =>
@@ -139,119 +173,164 @@ function applyXp(sectors, sectorKey, deltaXp) {
   return { sector: { ...sectors, [sectorKey]: s }, unlocked }
 }
 
-// is a recurring task due "today" given its schedule?
-function dueToday(recur, days, dateObj = new Date()) {
+// is a recurring task due tonight, given its schedule? (weekday = the NIGHT's
+// weekday, so 01:00 Tuesday still checks Monday's routines)
+function dueToday(recur, days, weekday = nightWeekday()) {
   if (recur === RECUR.DAILY) return true
   // WEEKLY & CUSTOM both resolve to a set of weekdays in days[] (0=Sun..6=Sat)
   if (recur === RECUR.WEEKLY || recur === RECUR.CUSTOM)
-    return (days || []).includes(dateObj.getDay())
+    return (days || []).includes(weekday)
   return false
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   RULES OF ENGAGEMENT — pure checks shared by the store and the UI.
+   ═══════════════════════════════════════════════════════════════════ */
+const isScheduled = (st, id) => Object.values(st.schedule || {}).includes(id)
+const graceStart = (t) => t.committedAt || t.createdAt || 0
+
+// Why this case can't carry the Bat-Signal tonight, or null if it can.
+export function signalBlock(st, t) {
+  if (!t || t.done) return 'That case is already closed.'
+  if (t.status === 'backlog') return 'Backlog intel cannot carry the Signal. Put it on patrol first.'
+  if (t.locked) return 'A locked case needs an alibi, not a Signal.'
+  if (t.assignedTo) return 'The Signal is yours, sir. Recall the case from the family first.'
+  if (!SIGNAL_THREATS.includes(t.threat)) return 'The Signal is only lit for High or Arkham-level cases.'
+  if (st.lastSignalDate === todayKey()) return 'The Signal is already lit tonight. Gotham gets one.'
+  return null
+}
+
+// Threat is set at intake: editable for 10 minutes after a case is committed,
+// never once it is scheduled or carries the Signal. Backlog intel stays open.
+export function threatLocked(st, t, now = Date.now()) {
+  if (!t) return true
+  if (t.threatLocked) return true
+  if (st.signal?.taskId === t.id) return true
+  if (isScheduled(st, t.id)) return true
+  if (t.status === 'backlog') return false
+  return now - graceStart(t) >= INTAKE_GRACE_MS
+}
+
+// What abandoning this case would cost right now. Free inside the grace
+// window, for backlog intel, and for routines not due tonight; otherwise it
+// is a failure like any other (×10 Joker Chaos if Prep Time was invoked).
+export function abandonCost(st, t, now = Date.now()) {
+  if (!t) return null
+  if (t.done) return { free: true, reason: 'closed', xp: 0, coins: 0 }
+  if (t.status === 'backlog') return { free: true, reason: 'backlog', xp: 0, coins: 0 }
+  if (!t.prepInvoked && now - graceStart(t) < INTAKE_GRACE_MS)
+    return { free: true, reason: 'grace', xp: 0, coins: 0 }
+  if (t.recur !== RECUR.NONE && (!dueToday(t.recur, t.days) || t.lastDoneDate === todayKey()))
+    return { free: true, reason: 'resting', xp: 0, coins: 0 }
+  const isSignal = st.signal?.taskId === t.id
+  if (t.prepInvoked)
+    return { free: false, reason: 'prep', xp: JOKER_CHAOS_XP * PREP_PENALTY_MULT, coins: JOKER_CHAOS_COINS * PREP_PENALTY_MULT, isSignal }
+  const base = THREAT[t.threat].penalty
+  return { free: false, reason: isSignal ? 'signal' : 'abandon', xp: base * (isSignal ? 1 + SIGNAL_MISS_MULT : 1), coins: 0, isSignal }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PERSISTED DATA — the single list of what a save contains. Used by the
+   store's initial state, the hard reset, export and the import validator.
+   ═══════════════════════════════════════════════════════════════════ */
+export const initialData = () => ({
+  // identity / time
+  firstNight: todayKey(),
+  lastSeen: todayKey(),
+  version: 4,
+  nightEndsHour: NIGHT_ENDS_HOUR,
+  // progression
+  sectors: freshSectors(),
+  coins: 0, // Wayne Coins (WC)
+  streak: 0,
+  failedCount: 0,
+  upgradesEarned: 0,
+  // content
+  tasks: [], // active
+  closedTasks: [], // archive
+  signal: null, // {taskId, date} — the Bat-Signal (3x)
+  lastSignalDate: null, // the night the Signal was last lit (one per night)
+  signalMisses: [], // [{date, title}] unanswered Signals (Crime Alley)
+  selectedSector: 'body',
+  // history — completionLog: [{ date:'YYYY-MM-DD', points, count, arkham }]
+  completionLog: [],
+  // Alfred / notifications
+  notifyPermission: 'default',
+  lastFearToxin: 0,
+  // Cowl Toggle
+  mode: 'batman', // 'wayne' | 'batman'
+  // Detective Vision — {active, taskId, endsAt, duration}
+  focus: null,
+  // Arkham Wing
+  rogueStats: { riddler: 0, freeze: 0, ivy: 0, bane: 0 },
+  // The Armory
+  gadgets: [],
+  // V5 Oracle Integration
+  wiretap: [], // raw intel backlog {id, text, at}
+  pendingTwoFace: false,
+  // GCPD Dispatch Grid
+  schedule: {}, // slotKey "wd:mins" → taskId (repeats weekly)
+  notifiedSlots: {}, // "YYYY-MM-DD:wd:mins" → true (chrono de-dupe, reset nightly)
+  // Arkham Mutation Protocol
+  riddlerScrambled: [],
+  // V7 Gotham Paradigm
+  activeTab: 'mission',
+  lastLoginDate: null,
+  boss: null,
+  bossBuffs: 0,
+  bossScars: [],
+  // V8 Detective Board Update
+  boardCores: [],
+  boardSubs: [],
+  journal: [],
+  graveyard: [],
+  focusStrict: true,
+  research: [],
+  unlockedResearch: [],
+  muted: false,
+  lastInterrogation: null,
+  // V9
+  slotResolutions: {},
+  adHackedUntil: 0,
+  // FOUNDATION (full UI lands in a later stage)
+  contingencies: [],
+  rnd: [],
+  biometrics: { date: null, sleep: null, soreness: null, bacta: false },
+  lazarus: { scars: [] },
+})
+export const PERSISTED_KEYS = Object.keys(initialData())
+export const persistedSlice = (st) =>
+  PERSISTED_KEYS.reduce((acc, k) => {
+    if (st[k] !== undefined) acc[k] = st[k]
+    return acc
+  }, {})
 
 export const useStore = create(
   persist(
     (set, get) => ({
-      // ── identity / time ──
-      firstNight: todayKey(),
-      lastSeen: todayKey(),
-      version: 4,
+      // ── everything a save holds (see initialData above) ──
+      ...initialData(),
 
-      // ── progression ──
-      sectors: freshSectors(),
-      coins: 0, // Wayne Coins (WC)
-      streak: 0,
-      failedCount: 0,
-      upgradesEarned: 0,
-
-      // ── content ──
-      tasks: [], // active
-      closedTasks: [], // archive
-      signal: null, // {taskId, date} — the Bat-Signal (3x)
-      selectedSector: 'body',
-
-      // ── history (Batcomputer Analytics) ──
-      // completionLog: [{ date:'YYYY-MM-DD', points, sector, threat }]
-      completionLog: [],
-
-      // ── Alfred / notifications ──
+      // ── transient UI state (never persisted — see partialize) ──
       toasts: [], // {id, label, text, tone}
-      notifyPermission: 'default',
-      lastFearToxin: 0,
-
-      // ── Cowl Toggle (Contextual Duality) ──
-      mode: 'batman', // 'wayne' | 'batman'
-
-      // ── Detective Vision (focus session) ──
-      // {active, taskId, endsAt, duration} — persisted so a reload mid-session
-      // is itself treated as breaking focus.
-      focus: null,
-
-      // ── Arkham Wing (rogue profiling) ──
-      rogueStats: { riddler: 0, freeze: 0, ivy: 0, bane: 0 },
-
-      // ── The Armory (owned Wayne Tech gadget ids) ──
-      gadgets: [],
-
-      // ── V5 Oracle Integration ──
       commandOpen: false, // Batcomputer Command Console (Cmd+K)
-      wiretap: [], // raw intel backlog {id, text, at}
-      pendingTwoFace: false, // a 7-day streak just shattered → coin toss owed
-
-      // ── GCPD Dispatch Grid (weekly routine) ──
-      schedule: {}, // slotKey "wd:mins" → taskId  (repeats weekly)
-      notifiedSlots: {}, // "YYYY-MM-DD:wd:mins" → true (chrono de-dupe, reset daily)
-
-      // ── Arkham Mutation Protocol ──
-      riddlerScrambled: [], // task ids whose titles are ciphered by a Riddler mutation
-
-      // ── V7 Gotham Paradigm ──
-      activeTab: 'mission', // left-rail navigation
       contextTaskId: null, // right contextual panel target
-      lastLoginDate: null, // Daily Alfred Briefing gate
-      boss: null, // weekly Rogue boss-fight {id,name,hp,maxHp,weekKey,defeated}
-      bossBuffs: 0, // permanent XP multiplier steps earned from defeats
-      bossScars: [], // [{id,name,week}] bosses that escaped
-      beltActive: null, // active Utility Belt gadget (e.g. 'batarang') for click-actions
-
-      // ── V8 Detective Board Update ──
-      boardCores: [], // {id,title,sector,x,y,done,taskId}
-      boardSubs: [], // {id,title,coreId,done,x,y}
-      journal: [], // {id,text,at,kind}
-      graveyard: [], // failed core/routine cases awaiting the Lazarus Pit
-      focusStrict: true, // focus mode: true=Arkham(strict) | false=Oracle(background)
-      research: [], // active R&D {projectId, startedAt}
-      unlockedResearch: [], // claimed project ids
-      muted: false, // global ambient mute
-      lastInterrogation: null, // date of last Arkham Interrogation
-
-      // ── V9 Arkham Interrogation Protocol ──
-      slotResolutions: {}, // "wd:mins" → {state:'done'|'failed', title, sector, threat} (clears at midnight)
-      adHackedUntil: 0, // Cryptographic Sequencer hides the Gazette ad until this ts
-      hoveredTaskId: null, // task under the cursor, for the 'T' quick-schedule hotkey
-
-      // ── FOUNDATION (full UI lands in the next stage) ──
-      contingencies: [], // {id, label, when, then, enabled, armed}
-      rnd: [], // Lucius Fox prototypes {id, title, stage, invested}
-      biometrics: { date: null, sleep: null, soreness: null, bacta: false },
-      lazarus: { scars: [] }, // [{date, forgavePenalties, clearedTasks}]
+      beltActive: null, // active Utility Belt gadget (e.g. 'batarang')
+      hoveredTaskId: null, // task under the cursor, for the 'T' hotkey
 
       /* ───────────────────────── TASKS ───────────────────────── */
       addTask: ({
         title, sector, threat, recur = RECUR.NONE, days = [], signal = false,
-        status = 'patrol', prep = false, schedule = null,
+        status = 'patrol', prep = false, schedule = null, lockThreat = false,
       }) => {
-        // WEEKLY anchors to today's weekday unless explicit days supplied.
+        // WEEKLY anchors to tonight's weekday unless explicit days supplied.
         const resolvedDays =
           recur === RECUR.WEEKLY && (!days || days.length === 0)
-            ? [new Date().getDay()]
+            ? [nightWeekday()]
             : days
-        // schedule = day-offset (0 today, 1 tomorrow …) → a scheduledFor date
-        let scheduledFor = null
-        if (schedule != null) {
-          const d = new Date()
-          d.setDate(d.getDate() + schedule)
-          scheduledFor = d.toISOString().slice(0, 10)
-        }
+        // schedule = night offset (0 tonight, 1 tomorrow …) → a scheduledFor key
+        const scheduledFor = schedule != null ? shiftKey(todayKey(), schedule) : null
+        const now = Date.now()
         const t = {
           id: uid(),
           title: title.trim(),
@@ -261,9 +340,11 @@ export const useStore = create(
           days: resolvedDays,
           status,
           scheduledFor,
-          createdAt: Date.now(),
+          createdAt: now,
+          committedAt: status === 'backlog' ? null : now, // the intake grace clock
           createdDate: todayKey(),
           done: false,
+          ...(lockThreat ? { threatLocked: true } : {}),
         }
         set((st) => ({ tasks: [t, ...st.tasks] }))
         if (signal) get().setSignal(t.id)
@@ -272,33 +353,80 @@ export const useStore = create(
         return t.id
       },
 
-      updateTask: (id, patch) =>
-        set((st) => ({
-          tasks: st.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
-        })),
+      // Edit a case. The threat is set at intake: after the 10-minute grace
+      // window (or once scheduled / signalled) it can no longer be changed.
+      updateTask: (id, patch) => {
+        const st = get()
+        const t = st.tasks.find((x) => x.id === id)
+        if (!t) return false
+        const next = { ...patch }
+        let refused = false
+        const isLocked = threatLocked(st, t)
+        if (next.threat && next.threat !== t.threat && isLocked) {
+          delete next.threat
+          refused = true
+          get().pushToast('ALFRED', 'The threat level was set at intake, sir. Gotham does not renegotiate.', 'blood')
+        }
+        // turning a one-off into a routine (or back) after intake would dodge
+        // the overdue lock — refused; changing a routine's days is fine
+        const wasRoutine = t.recur !== RECUR.NONE
+        const willBeRoutine = (next.recur ?? t.recur) !== RECUR.NONE
+        if (isLocked && wasRoutine !== willBeRoutine) {
+          delete next.recur
+          delete next.days
+          refused = true
+          get().pushToast('ALFRED', 'A one-off case cannot become a patrol route after intake, sir, nor the reverse.', 'blood')
+        }
+        set((s) => ({ tasks: s.tasks.map((x) => (x.id === id ? { ...x, ...next } : x)) }))
+        return !refused
+      },
 
+      // ABANDON — striking a case is free only inside the intake grace window
+      // (or for backlog intel / resting routines). Otherwise it is a failure:
+      // the threat's penalty (×3 if it carried the Signal, Joker Chaos ×10 if
+      // Prep Time was invoked), the streak breaks, and the case goes to the
+      // Arkham Wing to be named. Returns the cost that was applied.
       deleteTask: (id) => {
         const st = get()
         const t = st.tasks.find((x) => x.id === id)
-        // Abandoning a task after Prep Time was invoked → Joker Chaos ×10.
-        if (t && t.prepInvoked) {
-          const { sector } = applyXp(st.sectors, t.sector, -JOKER_CHAOS_XP * PREP_PENALTY_MULT)
-          set({
-            sectors: sector,
-            coins: Math.max(0, st.coins - JOKER_CHAOS_COINS * PREP_PENALTY_MULT),
-            streak: 0,
-            lastFearToxin: Date.now(),
-          })
-          get().pushToast(
-            'THE JOKER',
-            'You invoked prep time and ran anyway? HAHAHA. The price is TEN times steeper, Bats.',
-            'chaos'
-          )
+        if (!t) return null
+        const cost = abandonCost(st, t)
+        const schedule = { ...st.schedule }
+        Object.keys(schedule).forEach((k) => { if (schedule[k] === id) delete schedule[k] })
+        const signal = st.signal?.taskId === id ? null : st.signal
+        const tasks = st.tasks.filter((x) => x.id !== id)
+
+        if (cost.free) {
+          set({ tasks, schedule, signal })
+          if (cost.reason === 'grace') get().pushToast('ALFRED', 'Struck from the record before it was logged, sir.', 'gold')
+          return cost
         }
-        set((s) => ({
-          tasks: s.tasks.filter((x) => x.id !== id),
-          signal: s.signal?.taskId === id ? null : s.signal,
-        }))
+
+        const { sector } = applyXp(st.sectors, t.sector, -cost.xp)
+        set({
+          tasks,
+          schedule,
+          signal,
+          sectors: sector,
+          coins: Math.max(0, st.coins - cost.coins),
+          streak: 0,
+          failedCount: st.failedCount + 1,
+          lastFearToxin: Date.now(),
+          closedTasks: [
+            { ...t, id: uid(), srcId: t.id, failed: true, abandoned: true, rogue: null, closedAt: Date.now(), closedDate: todayKey() },
+            ...st.closedTasks,
+          ].slice(0, 400),
+          signalMisses: cost.isSignal
+            ? [{ date: todayKey(), title: t.title, abandoned: true }, ...st.signalMisses].slice(0, 60)
+            : st.signalMisses,
+        })
+        if (cost.reason === 'prep')
+          get().pushToast('THE JOKER', 'You invoked prep time and ran anyway? HAHAHA. The price is TEN times steeper, Bats.', 'chaos')
+        else if (cost.reason === 'signal')
+          get().pushToast('CRIME ALLEY', `You lit the Signal and walked away. Gotham saw it. −${cost.xp} XP.`, 'blood')
+        else
+          get().pushToast('ALFRED', `Case abandoned, sir. −${cost.xp} XP. It goes to the Arkham Wing to be named.`, 'blood')
+        return cost
       },
 
       // PREP TIME — lock a task behind a countdown; raise the stakes.
@@ -337,7 +465,19 @@ export const useStore = create(
         get().pushToast('PRESS RELEASE', 'Wayne Enterprises issues no further comment. The case is buried.', 'gold')
       },
 
-      setSignal: (taskId) => set({ signal: { taskId, date: todayKey() } }),
+      // THE BAT-SIGNAL — one per night, High or Arkham only, locked once lit.
+      setSignal: (taskId) => {
+        const st = get()
+        const t = st.tasks.find((x) => x.id === taskId)
+        const block = signalBlock(st, t)
+        if (block) {
+          get().pushToast('ALFRED', block, 'blood')
+          return false
+        }
+        set({ signal: { taskId, date: todayKey() }, lastSignalDate: todayKey() })
+        get().pushToast('ALFRED', pick(ALFRED.signalUp), 'gold')
+        return true
+      },
 
       // Complete a task → award XP+coins, log history, roll Joker chaos.
       completeTask: (id) => {
@@ -345,7 +485,7 @@ export const useStore = create(
         const t = st.tasks.find((x) => x.id === id)
         if (!t || t.done) return
         const meta = THREAT[t.threat]
-        const isSignal = st.signal?.taskId === id
+        const isSignal = st.signal?.taskId === id && st.signal.date === todayKey()
         const mult = isSignal ? 3 : 1
 
         // permanent boss-defeat buff folds into every XP award
@@ -369,12 +509,11 @@ export const useStore = create(
         const { sector, unlocked } = applyXp(st.sectors, t.sector, gainedXp)
 
         const log = [...st.completionLog]
-        const day = log.find((d) => d.date === todayKey())
+        const dayIdx = log.findIndex((d) => d.date === todayKey())
         const isArkhamWin = t.threat === 'ARKHAM' ? 1 : 0
-        if (day) {
-          day.points += gainedXp
-          day.count = (day.count || 0) + 1
-          day.arkham = (day.arkham || 0) + isArkhamWin
+        if (dayIdx >= 0) {
+          const day = log[dayIdx]
+          log[dayIdx] = { ...day, points: day.points + gainedXp, count: (day.count || 0) + 1, arkham: (day.arkham || 0) + isArkhamWin }
         } else {
           log.push({ date: todayKey(), points: gainedXp, count: 1, arkham: isArkhamWin })
         }
@@ -393,7 +532,7 @@ export const useStore = create(
             { ...t, id: uid(), srcId: t.id, done: true, closedAt: Date.now(), closedDate: todayKey(), wasSignal: isSignal },
             ...st.closedTasks,
           ].slice(0, 400),
-          signal: isSignal ? null : st.signal,
+          signal: st.signal?.taskId === id ? null : st.signal,
         })
 
         get().bumpStreak()
@@ -442,9 +581,12 @@ export const useStore = create(
       rolloverCheck: () => {
         const st = get()
         const today = todayKey()
-        if (st.lastSeen === today) return
+        // Only ever roll FORWARD (a changed night boundary must not replay a night).
+        if (st.lastSeen && st.lastSeen >= today) return
 
-        const now = new Date()
+        const lastNight = shiftKey(today, -1)
+        const lastNightWd = keyToDate(lastNight).getDay()
+        const tonightWd = keyToDate(today).getDay()
         let workingSectors = get().sectors
         const survivors = []
         const newlyFailed = [] // archived for Arkham Wing tagging
@@ -452,11 +594,13 @@ export const useStore = create(
 
         st.tasks.forEach((t) => {
           if (t.recur !== RECUR.NONE) {
-            // Re-arm if due today; otherwise rest until its next scheduled day.
-            const armed = dueToday(t.recur, t.days, now)
-            // Soft miss: due again, still not completed (half penalty, High/Arkham
-            // only — dailies shouldn't be ruinous). Rest days never penalize.
-            const missed = armed && !t.done && t.lastDoneDate !== today
+            // Re-arm if due tonight; otherwise rest until its next scheduled night.
+            const armed = dueToday(t.recur, t.days, tonightWd)
+            // Soft miss: it was due LAST night and wasn't closed then (half
+            // penalty, High/Arkham only — dailies shouldn't be ruinous). Rest
+            // nights never penalize.
+            const wasDue = dueToday(t.recur, t.days, lastNightWd)
+            const missed = wasDue && t.lastDoneDate !== lastNight && (t.createdDate || '') <= lastNight
             if (missed && THREAT[t.threat].rank >= 2) {
               const drained = applyXp(workingSectors, t.sector, -Math.round(THREAT[t.threat].penalty * 0.5))
               workingSectors = drained.sector
@@ -482,6 +626,19 @@ export const useStore = create(
           }
         })
 
+        // CRIME ALLEY — a Signal lit on an earlier night and never answered.
+        // (Completing or abandoning the case clears the Signal, so if it is
+        // still lit at rollover, nobody came.) Costs double the case's penalty.
+        let signalMissed = null
+        if (st.signal && st.signal.date < today) {
+          const t = st.tasks.find((x) => x.id === st.signal.taskId)
+          const penalty = (THREAT[t?.threat]?.penalty || THREAT.HIGH.penalty) * SIGNAL_MISS_MULT
+          const drained = applyXp(workingSectors, t?.sector || 'mind', -penalty)
+          workingSectors = drained.sector
+          failed += 1
+          signalMissed = { date: st.signal.date, title: t?.title || 'the priority target', penalty }
+        }
+
         // Two-Face: did a 7-day (or longer) streak just shatter?
         const streakShattered = failed > 0 && st.streak >= TWOFACE_STREAK
 
@@ -494,9 +651,14 @@ export const useStore = create(
           streak: failed > 0 ? 0 : st.streak,
           lastFearToxin: failed > 0 ? Date.now() : st.lastFearToxin,
           pendingTwoFace: st.pendingTwoFace || streakShattered,
-          notifiedSlots: {}, // fresh chrono log each new day
-          slotResolutions: {}, // routine ticks/crosses reset at midnight
+          notifiedSlots: {}, // fresh chrono log each new night
+          slotResolutions: {}, // routine ticks/crosses reset at the night boundary
+          signal: signalMissed ? null : st.signal,
+          signalMisses: signalMissed ? [signalMissed, ...st.signalMisses].slice(0, 60) : st.signalMisses,
         })
+
+        if (signalMissed)
+          get().pushToast('CRIME ALLEY', `The Signal burned all night over “${signalMissed.title}”. No one came. −${signalMissed.penalty} XP.`, 'blood')
 
         if (failed > 0) get().pushToast('ALFRED', pick(ALFRED.fail), 'blood')
         if (streakShattered) get().pushToast('TWO-FACE', 'A seven-night streak, broken. The coin must decide your fate.', 'chaos')
@@ -507,11 +669,10 @@ export const useStore = create(
       bumpStreak: () => {
         const dates = new Set(get().completionLog.filter((d) => d.count > 0).map((d) => d.date))
         let streak = 0
-        const cur = new Date()
-        // require today to count
-        while (dates.has(cur.toISOString().slice(0, 10))) {
+        let key = todayKey() // require tonight to count
+        while (dates.has(key)) {
           streak += 1
-          cur.setDate(cur.getDate() - 1)
+          key = shiftKey(key, -1)
         }
         set({ streak })
       },
@@ -680,7 +841,7 @@ export const useStore = create(
         const next = { ...st.slotResolutions }
         delete next[key]
         set({ slotResolutions: next, failedCount: Math.max(0, st.failedCount - 1) })
-        const id = get().addTask({ title: res.title, sector: res.sector, threat: res.threat })
+        const id = get().addTask({ title: res.title, sector: res.sector, threat: res.threat, lockThreat: true })
         get().assignSlot(wd, mins, id)
         get().pushToast('SMOKE PELLET', 'Vanished. The failure is forgiven — back to pending.', 'gold')
         return true
@@ -754,7 +915,7 @@ export const useStore = create(
           failedCount: Math.max(0, st.failedCount - 1),
           streak: Math.max(st.streak, g.streakAtFail || 0),
         })
-        get().addTask({ title: g.title, sector: g.sector, threat: g.threat })
+        get().addTask({ title: g.title, sector: g.sector, threat: g.threat, lockThreat: true })
         // tag the freshly-created task with a permanent Lazarus scar
         set((s2) => ({ tasks: s2.tasks.map((t, i) => (i === 0 ? { ...t, lazarusScar: true } : t)) }))
         get().pushToast('THE LAZARUS PIT', 'Reborn — and forever scarred green. Do not waste this second life.', 'chaos')
@@ -786,7 +947,7 @@ export const useStore = create(
         const st = get()
         const core = st.boardCores.find((c) => c.id === coreId)
         if (!core || core.taskId) return
-        const taskId = get().addTask({ title: core.title, sector: core.sector, threat: 'HIGH' })
+        const taskId = get().addTask({ title: core.title, sector: core.sector, threat: 'HIGH', lockThreat: true })
         set((s2) => ({ tasks: s2.tasks.map((t) => (t.id === taskId ? { ...t, coreId } : t)), boardCores: s2.boardCores.map((c) => (c.id === coreId ? { ...c, taskId } : c)) }))
         get().pushToast('ALFRED', 'Core objective deployed to the Dispatch Grid, sir. Schedule it.', 'gold')
       },
@@ -838,6 +999,10 @@ export const useStore = create(
       /* ════════════ BAT-FAMILY NETWORK (delegation) ══════════════ */
       // Hand a case to a sidekick; it leaves your active board for their queue.
       assignTaskTo: (id, sidekickId) => {
+        if (get().signal?.taskId === id) {
+          get().pushToast('ALFRED', 'The Signal is yours, sir. It cannot be handed to the family.', 'blood')
+          return false
+        }
         set((st) => ({ tasks: st.tasks.map((t) => (t.id === id ? { ...t, assignedTo: sidekickId } : t)) }))
         const sk = SIDEKICK_BY_ID[sidekickId]
         if (sk) get().pushToast(sk.name.toUpperCase(), sk.line, 'gold')
@@ -906,7 +1071,14 @@ export const useStore = create(
       /* ════════════ V5 · BLACKGATE (kanban status moves) ═════════ */
       setStatus: (id, status) => {
         if (status === 'incarcerated') return get().completeTask(id) // door slams shut
-        set((st) => ({ tasks: st.tasks.map((t) => (t.id === id ? { ...t, status } : t)) }))
+        set((st) => ({
+          tasks: st.tasks.map((t) => {
+            if (t.id !== id) return t
+            // leaving the backlog = committing to the case: the intake grace clock starts
+            const committedAt = t.status === 'backlog' && status !== 'backlog' ? Date.now() : t.committedAt
+            return { ...t, status, committedAt }
+          }),
+        }))
       },
 
       /* ════════════ V5 · TWO-FACE (the coin decides) ════════════ */
@@ -952,9 +1124,11 @@ export const useStore = create(
         const sectorKey = task?.sector || 'mind'
         const { sector, unlocked } = applyXp(st.sectors, sectorKey, FOCUS_BOUNTY_XP)
         const log = [...st.completionLog]
-        const day = log.find((d) => d.date === todayKey())
-        if (day) { day.points += FOCUS_BOUNTY_XP; day.count = (day.count || 0) + 1 }
-        else log.push({ date: todayKey(), points: FOCUS_BOUNTY_XP, count: 1 })
+        // the bounty adds points; the mission itself is counted once, by completeTask
+        const extra = task ? 0 : 1
+        const idx = log.findIndex((d) => d.date === todayKey())
+        if (idx >= 0) log[idx] = { ...log[idx], points: log[idx].points + FOCUS_BOUNTY_XP, count: (log[idx].count || 0) + extra }
+        else log.push({ date: todayKey(), points: FOCUS_BOUNTY_XP, count: extra })
         set({
           sectors: sector,
           coins: st.coins + FOCUS_BOUNTY_COINS,
@@ -1056,96 +1230,52 @@ export const useStore = create(
         get().pushToast('RA\'S AL GHUL', 'The Pit forgives the body. It does not forgive the soul. The scar remains.', 'chaos')
       },
 
-      /* ──────────────── ENCRYPTED BACKUP (export/import) ────────── */
-      exportSave: () => {
-        const { toasts, ...persistable } = get()
-        void toasts
-        return JSON.stringify(
-          { _signature: 'WAYNE-OS-DKP', exportedAt: new Date().toISOString(), data: persistable },
-          null,
-          2
-        )
-      },
-      importSave: (raw) => {
+      /* ──────────────── WAYNE-TECH VAULT (export / import) ──────────── */
+      // The save as a downloadable JSON string (persisted data only).
+      exportSave: () => buildSaveText(persistedSlice(get())),
+
+      // Replace the save with already-validated data (see readSaveText). The
+      // current save is first copied to localStorage[PREIMPORT_KEY] so an
+      // import can always be undone by hand.
+      importSave: (data) => {
         try {
-          const parsed = JSON.parse(raw)
-          const data = parsed.data || parsed
-          set({
-            ...data,
-            toasts: [],
-            _streakToday: false,
-          })
-          get().pushToast('ALFRED', 'Your records are restored, Master Wayne. Welcome back.', 'gold')
-          return true
+          const cur = localStorage.getItem(STORAGE_KEY)
+          if (cur) localStorage.setItem(PREIMPORT_KEY, cur)
         } catch (e) {
-          get().pushToast('ALFRED', 'This file is corrupted, sir. I could not read it.', 'blood')
-          return false
+          /* storage unavailable — continue */
         }
+        const { data: clean } = normalizeState(data, initialData())
+        nightEndsHour = clean.nightEndsHour ?? NIGHT_ENDS_HOUR
+        set({ ...clean, toasts: [], contextTaskId: null, commandOpen: false, beltActive: null, hoveredTaskId: null })
+        get().pushToast('ALFRED', 'Your records are restored, Master Wayne. Welcome back.', 'gold')
+        return true
       },
 
       hardReset: () => {
-        set({
-          firstNight: todayKey(),
-          lastSeen: todayKey(),
-          sectors: freshSectors(),
-          coins: 0,
-          streak: 0,
-          failedCount: 0,
-          upgradesEarned: 0,
-          tasks: [],
-          closedTasks: [],
-          signal: null,
-          completionLog: [],
-          toasts: [],
-          mode: 'batman',
-          focus: null,
-          gadgets: [],
-          commandOpen: false,
-          wiretap: [],
-          pendingTwoFace: false,
-          schedule: {},
-          notifiedSlots: {},
-          riddlerScrambled: [],
-          activeTab: 'mission',
-          contextTaskId: null,
-          lastLoginDate: null,
-          boss: null,
-          bossBuffs: 0,
-          bossScars: [],
-          beltActive: null,
-          boardCores: [],
-          boardSubs: [],
-          journal: [],
-          graveyard: [],
-          focusStrict: true,
-          research: [],
-          unlockedResearch: [],
-          muted: false,
-          lastInterrogation: null,
-          slotResolutions: {},
-          adHackedUntil: 0,
-          hoveredTaskId: null,
-          rogueStats: { riddler: 0, freeze: 0, ivy: 0, bane: 0 },
-          contingencies: [],
-          rnd: [],
-          biometrics: { date: null, sleep: null, soreness: null, bacta: false },
-          lazarus: { scars: [] }, // the WIPE is absolute — even the scars go
-          _streakToday: false,
-        })
+        nightEndsHour = NIGHT_ENDS_HOUR
+        // the WIPE is absolute — even the scars go
+        set({ ...initialData(), toasts: [], contextTaskId: null, commandOpen: false, beltActive: null, hoveredTaskId: null })
+      },
+
+      // The hour the night ends (local). Rollover only ever moves forward, so
+      // changing this never replays or skips a night's penalties twice.
+      setNightEndsHour: (h) => {
+        const hour = Math.min(6, Math.max(0, Math.round(Number(h) || 0)))
+        nightEndsHour = hour
+        set({ nightEndsHour: hour })
+        get().pushToast('ALFRED', `Very good, sir. The night now ends at ${String(hour).padStart(2, '0')}:00.`, 'gold')
       },
     }),
     {
       name: STORAGE_KEY,
-      partialize: (st) => {
-        // never persist transient UI noise (toasts, open-console flag, belt mode,
-        // the contextual-panel target)
-        const { toasts, commandOpen, beltActive, contextTaskId, hoveredTaskId, ...rest } = st
-        void toasts
-        void commandOpen
-        void beltActive
-        void contextTaskId
-        void hoveredTaskId
-        return rest
+      // v1 = Phase 0: local night keys, Signal rules, validated saves.
+      version: 1,
+      // Older saves (v0) are normalised against the defaults; nothing is lost
+      // except damaged cases and an in-flight focus session.
+      migrate: (persisted) => normalizeState(persisted, initialData()).data,
+      partialize: (st) => persistedSlice(st),
+      onRehydrateStorage: () => (st) => {
+        if (st && Number.isFinite(st.nightEndsHour)) nightEndsHour = st.nightEndsHour
       },
     }
   )
@@ -1159,11 +1289,10 @@ export const selectCompositeLevel = (st) =>
 export function build30DaySeries(log) {
   const map = new Map(log.map((d) => [d.date, d]))
   const out = []
-  const today = new Date()
+  const today = todayKey()
   for (let i = 29; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
+    const key = shiftKey(today, -i)
+    const d = keyToDate(key)
     const entry = map.get(key)
     out.push({
       date: key,
@@ -1180,11 +1309,9 @@ export function build30DaySeries(log) {
 export function build365Series(log) {
   const map = new Map(log.map((d) => [d.date, d]))
   const out = []
-  const today = new Date()
+  const today = todayKey()
   for (let i = 364; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
+    const key = shiftKey(today, -i)
     const e = map.get(key)
     out.push({ date: key, points: e?.points || 0, count: e?.count || 0, arkham: e?.arkham || 0 })
   }

@@ -198,3 +198,30 @@ src/
     BatSignal.jsx      Metrics.jsx       BackupPanel.jsx
     AlfredToaster.jsx
 ```
+
+## Phase 0 — Stabilise (October 2026)
+
+The rules of engagement, enforced in `src/store.js` (constants in `src/constants.js`):
+
+- **Nights, not UTC days.** Every date key is local time, and a night runs until
+  04:00 (change it in The Cave → Wayne-Tech Vault). Work at 1 a.m. counts for
+  the night it started in. Rollover only ever moves forward.
+- **One Bat-Signal per night**, only on a High or Arkham case, locked once lit.
+  An unanswered Signal at rollover costs 2× the case's penalty (logged in
+  `signalMisses` for the coming Crime Alley Flashback).
+- **Abandoning is a miss.** Striking a case is free for 10 minutes after it is
+  committed (and always for backlog intel or routines resting tonight). After
+  that it costs the threat's penalty, breaks the streak and goes to the Arkham
+  Wing. Prep Time still makes it Joker Chaos ×10.
+- **Terms are set at intake.** Threat (and one-off ↔ routine) locks 10 minutes
+  after commit, or as soon as a case is scheduled or signalled.
+- **Saves can't be lost by accident.** Persist version 1 with a migration for
+  older saves; imports are validated and summarised before replacing anything
+  (the old save is kept in `localStorage['wayneOSv3-preimport']`); the crash
+  screen offers DOWNLOAD MY SAVE before any purge.
+- **Art is WebP** (22 MB → 1.3 MB). Originals live in `/art-source`, outside the
+  build. `vite.config.js` uses a relative base, and `deploy.yml` is the only
+  Pages workflow.
+- Also fixed: weekly/custom routines were penalised on the wrong night, saving
+  a WEEKLY routine in the dossier wiped its weekday, and a focus session
+  counted its mission twice.

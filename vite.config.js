@@ -4,5 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/WayneEnterprise/', // EXACTLY your github repository name between slashes
+  // Relative base: the same build works on GitHub Pages under any repository
+  // name (rajatmitra97.github.io/WayneEnterprise/), in `vite preview`, and when
+  // opened from a local folder. The app has no client-side routes, so './' is safe.
+  base: './',
 })

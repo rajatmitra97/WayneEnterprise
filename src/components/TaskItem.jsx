@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Pencil, Trash2, Repeat, Radio, Eye, Clock, Users, Newspaper, Flame, Bird, Sparkles, Skull } from 'lucide-react'
-import { useStore } from '../store'
+import { useStore, signalBlock, abandonCost } from '../store'
 import { SECTORS, THREAT, RECUR, WEEKDAYS, PREP_DEFAULT_MS, SIDEKICKS, MUTATIONS, SCRAMBLE_CHARS } from '../constants'
 
 const SK_ICONS = { Bird, Sparkles, Skull, Radio }
@@ -57,6 +57,8 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
   const setHovered = useStore((s) => s.setHoveredTask)
   const signal = useStore((s) => s.signal)
   const isScrambled = useStore((s) => s.riddlerScrambled.includes(task.id))
+  // one Signal per night, High/Arkham only — the button only shows when allowed
+  const canSignal = useStore((s) => !signalBlock(s, task))
 
   const meta = THREAT[task.threat]
   const sector = SECTORS[task.sector] || { accent: '#9c5248', name: task.sector }
@@ -78,6 +80,19 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
   const [now, setNow] = useState(Date.now())
   const [closing, setClosing] = useState(false)
   const [delegating, setDelegating] = useState(false)
+  const [abandonQuote, setAbandonQuote] = useState(null) // cost shown before a costly abandon
+
+  // Abandon: free inside the 10-minute intake window, otherwise ask first.
+  const askAbandon = () => {
+    const cost = abandonCost(useStore.getState(), task)
+    if (!cost || cost.free) return remove(task.id)
+    setAbandonQuote(cost)
+  }
+  useEffect(() => {
+    if (!abandonQuote) return
+    const t = setTimeout(() => setAbandonQuote(null), 6000)
+    return () => clearTimeout(t)
+  }, [abandonQuote])
   const prepActive = task.prepInvoked && task.prepUntil && now < task.prepUntil
   const enraged = task.prepInvoked && task.prepUntil && now >= task.prepUntil && !task.done
 
@@ -176,7 +191,25 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
           {meta.tag}
         </span>
 
-        {locked ? (
+        {abandonQuote ? (
+          <div className="flex items-center gap-2 border border-blood/60 bg-blood/10 px-2 py-1.5">
+            <span className="font-display text-[12px] font-semibold tracking-[0.08em] text-blood">
+              ABANDON? −{abandonQuote.xp} XP{abandonQuote.coins ? ` · −${abandonQuote.coins} WC` : ''}
+            </span>
+            <button
+              onClick={() => { setAbandonQuote(null); remove(task.id) }}
+              className="bg-blood px-2 py-1 font-display text-[11px] font-semibold tracking-[0.12em] text-bone"
+            >
+              CONFIRM
+            </button>
+            <button
+              onClick={() => setAbandonQuote(null)}
+              className="px-1 font-display text-[11px] tracking-[0.12em] text-ash hover:text-bone"
+            >
+              KEEP
+            </button>
+          </div>
+        ) : locked ? (
           <button
             onClick={() => onAlibi(task)}
             className="flex items-center gap-2 border border-gold/60 bg-gold/10 px-3 py-2 font-display text-[12px] font-semibold tracking-[0.1em] text-gold transition hover:bg-gold/20"
@@ -187,10 +220,10 @@ export default function TaskItem({ task, onEdit, onFocus, onAlibi }) {
           <div className="flex items-center gap-0.5 opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
             <IconBtn icon={Eye} onClick={() => onFocus(task)} title="Detective Vision" className="text-ash hover:text-hud" />
             {!task.prepInvoked && <IconBtn icon={Clock} onClick={() => requirePrep(task.id, PREP_DEFAULT_MS)} title="Require Prep Time" className="text-ash hover:text-gold" />}
-            {!isSignal && <IconBtn icon={Radio} onClick={() => setSignal(task.id)} title="Light the Bat-Signal" className="text-ash hover:text-gold" />}
+            {!isSignal && canSignal && <IconBtn icon={Radio} onClick={() => setSignal(task.id)} title="Light the Bat-Signal — one per night, locked once lit" className="text-ash hover:text-gold" />}
             <IconBtn icon={Pencil} onClick={() => openContext(task.id)} title="Open dossier" className="text-ash hover:text-acid" />
             <IconBtn icon={Users} onClick={() => setDelegating((v) => !v)} title="Delegate to the Bat-Family" className={delegating ? 'text-gold' : 'text-ash hover:text-gold'} />
-            <IconBtn icon={Trash2} onClick={() => remove(task.id)} title={task.prepInvoked ? 'Abandon — Joker Chaos ×10!' : 'Abandon'} className={task.prepInvoked ? 'text-blood/70 hover:text-blood' : 'text-ash hover:text-blood'} />
+            <IconBtn icon={Trash2} onClick={askAbandon} title={task.prepInvoked ? 'Abandon — Joker Chaos ×10!' : 'Abandon (free for 10 minutes after intake, then it counts as a failure)'} className={task.prepInvoked ? 'text-blood/70 hover:text-blood' : 'text-ash hover:text-blood'} />
           </div>
         )}
 

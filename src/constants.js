@@ -122,6 +122,21 @@ export const THREAT = {
 }
 export const THREAT_ORDER = ['ARKHAM', 'HIGH', 'MEDIUM', 'LOW']
 
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 0 // RULES OF ENGAGEMENT — the exploits are closed.
+   ═══════════════════════════════════════════════════════════════════ */
+// The night ends at dawn, not at midnight. Work done before this local hour
+// still belongs to the night before. Adjustable in the Wayne-Tech Vault.
+export const NIGHT_ENDS_HOUR = 4
+export const NIGHT_ENDS_OPTIONS = [0, 1, 2, 3, 4, 5, 6]
+// A freshly committed case can be corrected or struck for 10 minutes. After
+// that its threat is locked, and abandoning it counts as a failure.
+export const INTAKE_GRACE_MS = 10 * 60 * 1000
+// The Bat-Signal: one per night, only for cases worth lighting the sky for.
+export const SIGNAL_THREATS = ['HIGH', 'ARKHAM']
+// An unanswered Signal costs this multiple of the case's own penalty.
+export const SIGNAL_MISS_MULT = 2
+
 // ─── PATROL ROUTES (recurrence) ──────────────────────────────────────
 export const RECUR = {
   NONE: 'NONE',

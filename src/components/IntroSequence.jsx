@@ -22,7 +22,7 @@ const DIVE_MS = 1600 // the plunge into the eye
 
 // Transform-origin pinned to the eye line. Percentages → responsive everywhere.
 const EYE_ORIGIN = '50% 38%'
-const HEAD_SRC = `${import.meta.env.BASE_URL}assets/batman-head.png`
+const HEAD_SRC = `${import.meta.env.BASE_URL}assets/batman-head.webp`
 
 export default function IntroSequence({ onReveal, onComplete }) {
   const [phase, setPhase] = useState('sync') // 'sync' | 'dive'
@@ -234,7 +234,7 @@ function Reticle() {
   )
 }
 
-/* Vector cowl fallback if /assets/batman-head.png isn't installed yet. */
+/* Vector cowl fallback if /assets/batman-head.webp isn't installed yet. */
 function FallbackCowl() {
   return (
     <svg viewBox="0 0 200 200" className="relative h-[62vh] w-auto" style={{ filter: 'drop-shadow(0 0 50px rgba(214,37,22,0.3))' }}>
